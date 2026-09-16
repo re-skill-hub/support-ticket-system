@@ -1,0 +1,68 @@
+<div class="ticket-detail-page">
+  @if (loading()) {
+    <mat-spinner diameter="40" />
+  } @else if (ticket()) {
+    @let t = ticket()!;
+    <mat-card class="summary-card">
+      <mat-card-header>
+        <mat-card-title>{{ t.title }}</mat-card-title>
+        <mat-card-subtitle>Created {{ t.createdAtUtc | date: 'medium' }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p class="description">{{ t.description }}</p>
+
+        <div class="status-row">
+          <app-status-chip [status]="t.status" />
+
+          @if (authService.isAgent()) {
+            <mat-form-field appearance="outline" class="status-select">
+              <mat-label>Status</mat-label>
+              <mat-select [value]="t.status" (selectionChange)="changeStatus($event.value)">
+                @for (status of statuses; track status) {
+                  <mat-option [value]="status">{{ status }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            @if (!t.assignedAgentId) {
+              <button mat-stroked-button (click)="assignToSelf()">Assign to me</button>
+            }
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <h3>Responses</h3>
+
+    @if (responses().length === 0) {
+      <p class="empty">No responses yet.</p>
+    } @else {
+      <div class="thread">
+        @for (response of responses(); track response.id) {
+          <mat-card class="response-card" [class.agent]="response.authorRole === 'SupportAgent'">
+            <mat-card-subtitle>{{ response.authorRole }} &middot; {{ response.createdAtUtc | date: 'short' }}</mat-card-subtitle>
+            <mat-card-content>{{ response.message }}</mat-card-content>
+          </mat-card>
+        }
+      </div>
+    }
+
+    <mat-divider />
+
+    <form class="reply-form" [formGroup]="replyForm" (ngSubmit)="sendReply()">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Write a reply</mat-label>
+        <textarea matInput formControlName="message" rows="3"></textarea>
+      </mat-form-field>
+      <button mat-flat-button color="primary" type="submit" [disabled]="replyForm.invalid || sending()">
+        @if (sending()) {
+          <mat-spinner diameter="20" />
+        } @else {
+          Send
+        }
+      </button>
+    </form>
+  } @else {
+    <p class="empty">Ticket not found.</p>
+  }
+</div>

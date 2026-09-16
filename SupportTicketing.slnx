@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/services/">
+    <Project Path="services/Contracts/Contracts.csproj" />
+    <Project Path="services/NotificationService/NotificationService.csproj" />
+    <Project Path="services/ResponseService/ResponseService.csproj" />
+    <Project Path="services/TicketService/TicketService.csproj" />
+  </Folder>
+</Solution>

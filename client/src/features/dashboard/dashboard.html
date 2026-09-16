@@ -1,0 +1,35 @@
+<div class="dashboard-page">
+  <h2>Support Metrics</h2>
+
+  @if (loading()) {
+    <mat-spinner diameter="40" />
+  } @else if (summary()) {
+    @let s = summary()!;
+    <div class="tiles">
+      <mat-card class="tile">
+        <mat-card-subtitle>Open</mat-card-subtitle>
+        <div class="value">{{ s.openCount }}</div>
+      </mat-card>
+
+      <mat-card class="tile">
+        <mat-card-subtitle>In Progress</mat-card-subtitle>
+        <div class="value">{{ s.inProgressCount }}</div>
+      </mat-card>
+
+      <mat-card class="tile">
+        <mat-card-subtitle>Closed</mat-card-subtitle>
+        <div class="value">{{ s.closedCount }}</div>
+      </mat-card>
+
+      <mat-card class="tile">
+        <mat-card-subtitle>Avg first response (min)</mat-card-subtitle>
+        <div class="value">{{ s.avgFirstResponseMinutes != null ? (s.avgFirstResponseMinutes | number: '1.0-1') : '—' }}</div>
+      </mat-card>
+
+      <mat-card class="tile">
+        <mat-card-subtitle>Avg resolution (min)</mat-card-subtitle>
+        <div class="value">{{ s.avgResolutionMinutes != null ? (s.avgResolutionMinutes | number: '1.0-1') : '—' }}</div>
+      </mat-card>
+    </div>
+  }
+</div>

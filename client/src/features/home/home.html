@@ -1,0 +1,16 @@
+<div class="home-page">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Welcome, {{ authService.currentUser()?.fullName }}</mat-card-title>
+      <mat-card-subtitle>Signed in as {{ authService.currentUser()?.role }}</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      @if (authService.isCustomer()) {
+        <p>Use "My Tickets" to view your support requests or "New Ticket" to raise a new one.</p>
+      }
+      @if (authService.isAgent()) {
+        <p>Use "Ticket Queue" to respond to customers or "Dashboard" to see response-time metrics.</p>
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

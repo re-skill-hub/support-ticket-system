@@ -1,0 +1,24 @@
+<mat-toolbar color="primary" class="toolbar">
+  <span class="brand" routerLink="/">Support Ticketing</span>
+
+  @if (authService.isAuthenticated()) {
+    <span class="spacer"></span>
+
+    @if (authService.isCustomer()) {
+      <a mat-button routerLink="/tickets">My Tickets</a>
+      <a mat-button routerLink="/tickets/new">New Ticket</a>
+    }
+
+    @if (authService.isAgent()) {
+      <a mat-button routerLink="/agent/queue">Ticket Queue</a>
+      <a mat-button routerLink="/dashboard">Dashboard</a>
+    }
+
+    <a mat-button routerLink="/notifications">
+      <mat-icon>notifications</mat-icon>
+    </a>
+
+    <span class="user-name">{{ authService.currentUser()?.fullName }}</span>
+    <button mat-button (click)="logout()">Logout</button>
+  }
+</mat-toolbar>

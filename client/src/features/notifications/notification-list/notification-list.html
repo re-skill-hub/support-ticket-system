@@ -1,0 +1,25 @@
+<div class="notification-list-page">
+  <h2>Notifications</h2>
+
+  @if (loading()) {
+    <mat-spinner diameter="40" />
+  } @else if (notifications().length === 0) {
+    <p class="empty">No notifications yet.</p>
+  } @else {
+    <mat-list>
+      @for (notification of notifications(); track notification.id) {
+        <mat-list-item [class.unread]="!notification.readAtUtc">
+          <mat-icon matListItemIcon>{{ notification.type === 'NewResponse' ? 'chat' : 'update' }}</mat-icon>
+          <div matListItemTitle>{{ notification.message }}</div>
+          <div matListItemLine>{{ notification.createdAtUtc | date: 'short' }}</div>
+          <div class="actions">
+            <a mat-button [routerLink]="['/tickets', notification.ticketId]">View ticket</a>
+            @if (!notification.readAtUtc) {
+              <button mat-button (click)="markAsRead(notification)">Mark as read</button>
+            }
+          </div>
+        </mat-list-item>
+      }
+    </mat-list>
+  }
+</div>

@@ -1,0 +1,18 @@
+.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 64px);
+  padding: 16px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.full-width {
+  width: 100%;
+  display: block;
+  margin-bottom: 8px;
+}

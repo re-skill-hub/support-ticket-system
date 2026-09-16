@@ -1,0 +1,17 @@
+## .NET
+bin/
+obj/
+*.user
+
+## Node / Angular
+node_modules/
+dist/
+.angular/
+
+## Env / secrets
+.env
+
+## OS / IDE
+.vs/
+.vscode/
+*.DotSettings.user

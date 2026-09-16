@@ -1,0 +1,50 @@
+.ticket-detail-page {
+  max-width: 700px;
+  margin: 24px auto;
+  padding: 0 16px;
+
+  .summary-card {
+    margin-bottom: 16px;
+  }
+
+  .description {
+    white-space: pre-wrap;
+  }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .status-select {
+    width: 160px;
+    margin-bottom: -1.25em;
+  }
+
+  .thread {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .response-card.agent {
+    background: #e3f2fd;
+  }
+
+  .empty {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .reply-form {
+    margin-top: 16px;
+
+    .full-width {
+      width: 100%;
+      display: block;
+    }
+  }
+}
