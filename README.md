@@ -108,4 +108,4 @@ support-ticket-system/
 
 ## Scope notes
 
-Deliberately left out for this capstone (see the project plan for the full reasoning): no API gateway/BFF — the Angular app calls all three services' ports directly; no JWT refresh-token rotation — a single longer-lived access token is used instead.
+Deliberately left out for this capstone (see the project plan for the full reasoning): no API gateway/BFF — the Angular app calls all three services' ports directly; no JWT refresh-token rotation — a single longer-lived access token is used instead; no Azure deployment — Docker Compose is the deployment target for this submission, with Azure (e.g. Container Apps + Azure SQL + Azure Service Bus) left as a future extension.

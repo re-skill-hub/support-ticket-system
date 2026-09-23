@@ -19,7 +19,7 @@ builder.Services.AddServiceHealthChecks(builder.Configuration);
 
 builder.Services.AddMassTransit(x =>
 {
-    x.SetEndpointNameFormatter(new MassTransit.KebabCaseEndpointNameFormatter("notification-service", false));
+    x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("notification-service", false));
 
     x.AddConsumer<TicketCreatedConsumer>();
     x.AddConsumer<ResponseAddedConsumer>();
