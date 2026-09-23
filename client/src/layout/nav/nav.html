@@ -15,7 +15,13 @@
     }
 
     <a mat-button routerLink="/notifications">
-      <mat-icon>notifications</mat-icon>
+      <mat-icon
+        [matBadge]="notificationService.unreadCount()"
+        [matBadgeHidden]="notificationService.unreadCount() === 0"
+        matBadgeColor="accent"
+        matBadgeSize="small"
+        >notifications</mat-icon
+      >
     </a>
 
     <span class="user-name">{{ authService.currentUser()?.fullName }}</span>

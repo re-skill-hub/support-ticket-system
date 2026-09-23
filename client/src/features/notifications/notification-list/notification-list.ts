@@ -40,6 +40,7 @@ export class NotificationList implements OnInit {
         this.notifications.update((list) =>
           list.map((n) => (n.id === notification.id ? { ...n, readAtUtc: new Date().toISOString() } : n)),
         );
+        this.notificationService.refreshUnreadCount();
       },
     });
   }

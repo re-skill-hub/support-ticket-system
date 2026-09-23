@@ -51,4 +51,8 @@ export const routes: Routes = [
     loadComponent: () =>
       import('../features/notifications/notification-list/notification-list').then((m) => m.NotificationList),
   },
+  {
+    path: '**',
+    loadComponent: () => import('../features/not-found/not-found').then((m) => m.NotFound),
+  },
 ];

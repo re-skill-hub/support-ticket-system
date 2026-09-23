@@ -17,7 +17,7 @@
           @if (authService.isAgent()) {
             <mat-form-field appearance="outline" class="status-select">
               <mat-label>Status</mat-label>
-              <mat-select [value]="t.status" (selectionChange)="changeStatus($event.value)">
+              <mat-select [formControl]="statusControl">
                 @for (status of statuses; track status) {
                   <mat-option [value]="status">{{ status }}</mat-option>
                 }
