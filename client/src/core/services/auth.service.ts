@@ -1,16 +1,14 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, catchError, firstValueFrom, of, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthResponse, AuthUser, LoginRequest, RegisterRequest } from '../../types/auth.types';
-
-const STORAGE_KEY = 'support-ticketing.auth';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly baseUrl = `${environment.ticketApiUrl}/auth`;
 
-  readonly currentUser = signal<AuthUser | null>(this.readStoredUser());
+  readonly currentUser = signal<AuthUser | null>(null);
   readonly isAuthenticated = computed(() => this.currentUser() !== null);
   readonly isAgent = computed(() => this.currentUser()?.role === 'SupportAgent');
   readonly isCustomer = computed(() => this.currentUser()?.role === 'Customer');
@@ -30,31 +28,32 @@ export class AuthService {
   }
 
   logout(): void {
-    localStorage.removeItem(STORAGE_KEY);
+    this.http.post(`${this.baseUrl}/logout`, {}).subscribe();
     this.currentUser.set(null);
   }
 
-  getToken(): string | null {
-    return this.currentUser()?.token ?? null;
+  /**
+   * Rehydrates currentUser from the httpOnly auth cookie (the JWT itself is invisible
+   * to JS by design). Called once at app bootstrap via provideAppInitializer so route
+   * guards see correct auth state before the first navigation.
+   */
+  initialize(): Promise<void> {
+    return firstValueFrom(
+      this.http.get<AuthResponse>(`${this.baseUrl}/me`).pipe(
+        tap((response) => this.setSession(response)),
+        catchError(() => {
+          this.currentUser.set(null);
+          return of(null);
+        }),
+      ),
+    ).then(() => undefined);
   }
 
   private setSession(response: AuthResponse): void {
-    const user: AuthUser = {
+    this.currentUser.set({
       email: response.email,
       fullName: response.fullName,
       role: response.role,
-      token: response.token,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    this.currentUser.set(user);
-  }
-
-  private readStoredUser(): AuthUser | null {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as AuthUser) : null;
-    } catch {
-      return null;
-    }
+    });
   }
 }

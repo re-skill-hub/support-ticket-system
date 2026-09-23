@@ -1,18 +1,10 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { AuthService } from '../services/auth.service';
 
+/**
+ * The JWT now lives in an httpOnly cookie (set by TicketService's /api/auth/* endpoints),
+ * so the client can't attach it as a header — it must ask the browser to send cookies on
+ * every cross-origin API call instead (client:4200 vs services:5101-5103).
+ */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
-  const token = authService.getToken();
-
-  if (!token) {
-    return next(req);
-  }
-
-  return next(
-    req.clone({
-      setHeaders: { Authorization: `Bearer ${token}` },
-    }),
-  );
+  return next(req.clone({ withCredentials: true }));
 };

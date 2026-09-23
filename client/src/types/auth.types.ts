@@ -4,7 +4,6 @@ export interface AuthUser {
   email: string;
   fullName: string;
   role: Role;
-  token: string;
 }
 
 export interface RegisterRequest {
@@ -19,7 +18,6 @@ export interface LoginRequest {
 }
 
 export interface AuthResponse {
-  token: string;
   email: string;
   fullName: string;
   role: Role;
