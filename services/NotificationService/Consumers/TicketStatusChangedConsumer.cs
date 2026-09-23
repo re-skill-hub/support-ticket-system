@@ -27,13 +27,22 @@ public class TicketStatusChangedConsumer(AppDbContext db, ILogger<TicketStatusCh
             metric.ClosedAtUtc = message.ChangedAtUtc;
         }
 
-        db.Notifications.Add(new Notification
+        var messageId = context.MessageId ?? Guid.NewGuid();
+        if (!await db.Notifications.AnyAsync(n => n.SourceMessageId == messageId))
         {
-            Type = NotificationType.StatusChanged,
-            TicketId = message.TicketId,
-            RecipientUserId = message.CustomerId,
-            Message = $"Your ticket status changed to {message.NewStatus}.",
-        });
+            db.Notifications.Add(new Notification
+            {
+                Type = NotificationType.StatusChanged,
+                TicketId = message.TicketId,
+                RecipientUserId = message.CustomerId,
+                Message = $"Your ticket status changed to {message.NewStatus}.",
+                SourceMessageId = messageId,
+            });
+        }
+        else
+        {
+            logger.LogInformation("Duplicate delivery of TicketStatusChanged {MessageId}; skipping notification insert.", messageId);
+        }
 
         await db.SaveChangesAsync();
 

@@ -21,6 +21,13 @@ public class ResponseAddedConsumer(AppDbContext db, ILogger<ResponseAddedConsume
             return;
         }
 
+        var messageId = context.MessageId ?? Guid.NewGuid();
+        if (await db.Notifications.AnyAsync(n => n.SourceMessageId == messageId))
+        {
+            logger.LogInformation("Duplicate delivery of ResponseAdded {MessageId}; skipping.", messageId);
+            return;
+        }
+
         var metric = await db.TicketMetrics.FirstOrDefaultAsync(m => m.TicketId == message.TicketId);
         if (metric is null)
         {
@@ -39,6 +46,7 @@ public class ResponseAddedConsumer(AppDbContext db, ILogger<ResponseAddedConsume
             TicketId = message.TicketId,
             RecipientUserId = metric.CustomerId,
             Message = "A support agent replied to your ticket.",
+            SourceMessageId = messageId,
         });
 
         await db.SaveChangesAsync();

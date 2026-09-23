@@ -14,6 +14,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             entity.Property(n => n.Message).HasMaxLength(1000);
             entity.HasIndex(n => n.RecipientUserId);
+            entity.HasIndex(n => n.SourceMessageId)
+                .IsUnique()
+                .HasFilter("[SourceMessageId] IS NOT NULL");
         });
 
         modelBuilder.Entity<TicketMetric>(entity =>
