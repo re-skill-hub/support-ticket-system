@@ -1,8 +1,11 @@
+using System.ComponentModel.DataAnnotations;
 using ResponseService.Entities;
 
 namespace ResponseService.Dtos;
 
-public record CreateResponseRequest(Guid TicketId, string Message);
+public record CreateResponseRequest(
+    [Required] Guid TicketId,
+    [Required, MaxLength(4000)] string Message);
 
 public record ResponseDto(
     Guid Id,

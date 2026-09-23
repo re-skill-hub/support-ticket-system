@@ -1,7 +1,14 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace TicketService.Dtos;
 
-public record RegisterRequest(string Email, string Password, string FullName);
+public record RegisterRequest(
+    [Required, EmailAddress] string Email,
+    [Required, MinLength(8)] string Password,
+    [Required, MaxLength(200)] string FullName);
 
-public record LoginRequest(string Email, string Password);
+public record LoginRequest(
+    [Required, EmailAddress] string Email,
+    [Required] string Password);
 
-public record AuthResponse(string Token, string Email, string FullName, string Role);
+public record AuthResponse(string Email, string FullName, string Role);

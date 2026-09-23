@@ -39,6 +39,24 @@ public static class JwtAuthenticationExtensions
                     NameClaimType = ClaimTypes.NameIdentifier,
                     ClockSkew = TimeSpan.FromSeconds(30),
                 };
+
+                // The browser client carries the token in an httpOnly cookie (never
+                // readable by JS) instead of an Authorization header. Fall back to the
+                // cookie only when no header was sent, so tools/Swagger can still use
+                // Bearer auth directly.
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        if (string.IsNullOrEmpty(context.Token)
+                            && context.Request.Cookies.TryGetValue(AuthCookieDefaults.CookieName, out var cookieToken))
+                        {
+                            context.Token = cookieToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
+                };
             });
 
         services.AddAuthorization();
