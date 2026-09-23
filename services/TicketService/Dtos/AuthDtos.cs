@@ -3,12 +3,12 @@ using System.ComponentModel.DataAnnotations;
 namespace TicketService.Dtos;
 
 public record RegisterRequest(
-    [Required, EmailAddress] string Email,
-    [Required, MinLength(8)] string Password,
-    [Required, MaxLength(200)] string FullName);
+    [property: Required, EmailAddress] string Email,
+    [property: Required, MinLength(8)] string Password,
+    [property: Required, MaxLength(200)] string FullName);
 
 public record LoginRequest(
-    [Required, EmailAddress] string Email,
-    [Required] string Password);
+    [property: Required, EmailAddress] string Email,
+    [property: Required] string Password);
 
 public record AuthResponse(string Email, string FullName, string Role);

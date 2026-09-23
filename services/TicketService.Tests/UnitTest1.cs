@@ -1,5 +1,6 @@
 using System.Reflection;
 using TicketService.Dtos;
+using TicketService.Entities;
 
 namespace TicketService.Tests;
 
@@ -59,19 +60,66 @@ public class CriticalPathAuthDtoTests
 public class CriticalPathTicketDtoTests
 {
     [Fact]
-    public void CreateTicketRequest_NamedParameters()
+    public void CreateTicketRequest_ValidValues_PassValidation()
     {
-        var req = new { title = "Test", description = "Desc" };
-        Assert.Equal("Test", req.title);
-        Assert.Equal("Desc", req.description);
+        var request = new CreateTicketRequest("Printer is broken", "It won't turn on since this morning.");
+
+        var results = Validate(request);
+
+        Assert.Empty(results);
+        Assert.Equal("Printer is broken", request.Title);
+        Assert.Equal("It won't turn on since this morning.", request.Description);
+    }
+
+    [Theory]
+    [InlineData(null, "Description")]
+    [InlineData("", "Description")]
+    public void CreateTicketRequest_MissingTitle_FailsValidation(string? title, string description)
+    {
+        var request = new CreateTicketRequest(title!, description);
+
+        var results = Validate(request);
+
+        Assert.Contains(results, r => r.MemberNames.Contains(nameof(CreateTicketRequest.Title)));
     }
 
     [Fact]
-    public void CreateResponseRequest_NamedParameters()
+    public void CreateTicketRequest_TitleTooLong_FailsValidation()
     {
-        var req = new { ticketId = Guid.NewGuid(), message = "Response message" };
-        Assert.NotEqual(Guid.Empty, req.ticketId);
-        Assert.NotEmpty(req.message);
+        var request = new CreateTicketRequest(new string('a', 201), "Description");
+
+        var results = Validate(request);
+
+        Assert.Contains(results, r => r.MemberNames.Contains(nameof(CreateTicketRequest.Title)));
+    }
+
+    [Fact]
+    public void CreateTicketRequest_DescriptionTooLong_FailsValidation()
+    {
+        var request = new CreateTicketRequest("Title", new string('a', 4001));
+
+        var results = Validate(request);
+
+        Assert.Contains(results, r => r.MemberNames.Contains(nameof(CreateTicketRequest.Description)));
+    }
+
+    [Fact]
+    public void UpdateTicketStatusRequest_HoldsRequestedStatus()
+    {
+        var request = new UpdateTicketStatusRequest(TicketStatus.InProgress);
+
+        Assert.Equal(TicketStatus.InProgress, request.Status);
+    }
+
+    private static List<System.ComponentModel.DataAnnotations.ValidationResult> Validate(object dto)
+    {
+        var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+        System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
+            dto,
+            new System.ComponentModel.DataAnnotations.ValidationContext(dto),
+            results,
+            validateAllProperties: true);
+        return results;
     }
 }
 
