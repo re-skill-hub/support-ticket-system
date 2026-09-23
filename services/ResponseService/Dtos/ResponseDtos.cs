@@ -4,8 +4,8 @@ using ResponseService.Entities;
 namespace ResponseService.Dtos;
 
 public record CreateResponseRequest(
-    [property: Required] Guid TicketId,
-    [property: Required, MaxLength(4000)] string Message);
+    [Required] Guid TicketId,
+    [Required, MaxLength(4000)] string Message);
 
 public record ResponseDto(
     Guid Id,

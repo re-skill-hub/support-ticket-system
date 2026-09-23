@@ -111,14 +111,32 @@ public class CriticalPathTicketDtoTests
         Assert.Equal(TicketStatus.InProgress, request.Status);
     }
 
+    // Record DTOs carry validation attributes on the primary constructor's parameters
+    // (required by ASP.NET Core's model binder — see ModelMetadata.ThrowIfRecordTypeHasValidationOnProperties).
+    // Validator.TryValidateObject only inspects PropertyInfo, so it can't see them; walk the
+    // constructor parameters directly to mirror what the live MVC pipeline actually validates.
     private static List<System.ComponentModel.DataAnnotations.ValidationResult> Validate(object dto)
     {
         var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
-        System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
-            dto,
-            new System.ComponentModel.DataAnnotations.ValidationContext(dto),
-            results,
-            validateAllProperties: true);
+        var type = dto.GetType();
+        var ctor = type.GetConstructors().Single();
+
+        foreach (var parameter in ctor.GetParameters())
+        {
+            var property = type.GetProperty(parameter.Name!)!;
+            var value = property.GetValue(dto);
+
+            foreach (var attribute in parameter.GetCustomAttributes<System.ComponentModel.DataAnnotations.ValidationAttribute>(inherit: true))
+            {
+                if (!attribute.IsValid(value))
+                {
+                    results.Add(new System.ComponentModel.DataAnnotations.ValidationResult(
+                        attribute.FormatErrorMessage(parameter.Name!),
+                        new[] { parameter.Name! }));
+                }
+            }
+        }
+
         return results;
     }
 }

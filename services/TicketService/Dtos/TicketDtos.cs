@@ -4,8 +4,8 @@ using TicketService.Entities;
 namespace TicketService.Dtos;
 
 public record CreateTicketRequest(
-    [property: Required, MaxLength(200)] string Title,
-    [property: Required, MaxLength(4000)] string Description);
+    [Required, MaxLength(200)] string Title,
+    [Required, MaxLength(4000)] string Description);
 
 public record UpdateTicketStatusRequest(TicketStatus Status);
 
