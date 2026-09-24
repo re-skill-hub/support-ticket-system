@@ -1,0 +1,301 @@
+{
+  "info": {
+    "_postman_id": "a3f1e6c2-6b7d-4a2f-9e8a-support-ticketing",
+    "name": "Support Ticketing System",
+    "description": "Auth, Tickets, Responses, Notifications and Metrics endpoints for the TicketService, ResponseService and NotificationService APIs. Auth uses an httpOnly cookie set by Register/Login, so run requests through Postman's cookie jar (default) rather than copying tokens manually. Import the accompanying 'Support Ticketing - Local (Docker Compose)' environment and select it before running requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\",\n  \"fullName\": \"Test Customer\"\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/auth/register",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Registers a new user and signs them in as Customer. Sets the httpOnly auth cookie."
+          }
+        },
+        {
+          "name": "Login (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/auth/login",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login (Support Agent - seeded)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{agentEmail}}\",\n  \"password\": \"{{agentPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/auth/login",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Logs in as the seeded SupportAgent account so the Agent-only requests below (GetAll, UpdateStatus, AssignToSelf, Metrics) succeed."
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ticketApiUrl}}/auth/me",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Rehydrates the session (email/fullName/role) from the auth cookie."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{ticketApiUrl}}/auth/logout",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Create Ticket (Customer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.environment.set('ticketId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Broken printer\",\n  \"description\": \"Won't power on since this morning.\",\n  \"priority\": \"High\",\n  \"category\": \"Technical\"\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets"]
+            },
+            "description": "Priority: Low | Medium | High | Urgent. Category: General | Technical | Billing | Account. Sets {{ticketId}} from the response for the requests below."
+          }
+        },
+        {
+          "name": "Get My Tickets (Customer)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets/mine",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets", "mine"]
+            }
+          }
+        },
+        {
+          "name": "Get All Tickets (Agent, filter by status/priority)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets?status=Open&priority=High",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets"],
+              "query": [
+                { "key": "status", "value": "Open", "description": "Optional: Open | InProgress | Closed" },
+                { "key": "priority", "value": "High", "description": "Optional: Low | Medium | High | Urgent" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Ticket By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets/{{ticketId}}",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets", "{{ticketId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Ticket Status (Agent)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"InProgress\"\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets/{{ticketId}}/status",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Assign Ticket To Self (Agent)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets/{{ticketId}}/assign",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "assign"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Responses",
+      "item": [
+        {
+          "name": "Create Response",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketId\": \"{{ticketId}}\",\n  \"message\": \"We've received your ticket and are looking into it.\"\n}"
+            },
+            "url": {
+              "raw": "{{responseApiUrl}}/responses",
+              "host": ["{{responseApiUrl}}"],
+              "path": ["responses"]
+            },
+            "description": "Author role/id are inferred from the auth cookie; the caller must be the ticket's customer or a SupportAgent."
+          }
+        },
+        {
+          "name": "Get Responses By Ticket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{responseApiUrl}}/responses/ticket/{{ticketId}}",
+              "host": ["{{responseApiUrl}}"],
+              "path": ["responses", "ticket", "{{ticketId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    if (Array.isArray(body) && body.length > 0) {",
+                  "        pm.environment.set('notificationId', body[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificationApiUrl}}/notifications/mine",
+              "host": ["{{notificationApiUrl}}"],
+              "path": ["notifications", "mine"]
+            },
+            "description": "Sets {{notificationId}} from the first notification in the response, if any."
+          }
+        },
+        {
+          "name": "Mark Notification As Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{notificationApiUrl}}/notifications/{{notificationId}}/read",
+              "host": ["{{notificationApiUrl}}"],
+              "path": ["notifications", "{{notificationId}}", "read"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Metrics (Agent only)",
+      "item": [
+        {
+          "name": "Get Metrics Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificationApiUrl}}/metrics/summary",
+              "host": ["{{notificationApiUrl}}"],
+              "path": ["metrics", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Get Metrics For Ticket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificationApiUrl}}/metrics/tickets/{{ticketId}}",
+              "host": ["{{notificationApiUrl}}"],
+              "path": ["metrics", "tickets", "{{ticketId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

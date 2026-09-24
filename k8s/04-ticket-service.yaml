@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ticket-service
+  template:
+    metadata:
+      labels:
+        app: ticket-service
+    spec:
+      containers:
+        - name: ticket-service
+          image: ticket-service:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MSSQL_SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MSSQL_SA_PASSWORD
+            - name: RABBITMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: RABBITMQ_PASS
+            - name: Jwt__Secret
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_SECRET
+            - name: Jwt__Issuer
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: JWT_ISSUER
+            - name: Jwt__Audience
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: JWT_AUDIENCE
+            - name: Cors__AllowedOrigin
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: CORS_ALLOWED_ORIGIN
+            - name: RabbitMq__Host
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: RABBITMQ_HOST
+            - name: RabbitMq__Username
+              value: $(RABBITMQ_USER)
+            - name: RabbitMq__Password
+              value: $(RABBITMQ_PASS)
+            - name: ConnectionStrings__DefaultConnection
+              value: "Server=sqlserver,1433;Database=TicketServiceDb;User Id=sa;Password=$(MSSQL_SA_PASSWORD);TrustServerCertificate=True;"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: ticket-service
+  ports:
+    - port: 5101
+      targetPort: 8080

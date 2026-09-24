@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  JWT_ISSUER: SupportTicketing
+  JWT_AUDIENCE: SupportTicketing.Clients
+  CORS_ALLOWED_ORIGIN: http://localhost:4200
+  SQLSERVER_HOST: sqlserver
+  RABBITMQ_HOST: rabbitmq

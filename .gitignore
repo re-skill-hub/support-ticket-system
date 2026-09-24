@@ -10,6 +10,7 @@ dist/
 
 ## Env / secrets
 .env
+k8s/01-secret.yaml
 
 ## OS / IDE
 .vs/
