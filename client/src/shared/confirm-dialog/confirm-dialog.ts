@@ -1,28 +1,26 @@
 import { Component, inject } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatButtonModule } from '@angular/material/button';
-
-export interface ConfirmDialogData {
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-}
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
   selector: 'app-confirm-dialog',
-  imports: [MatDialogModule, MatButtonModule],
   templateUrl: './confirm-dialog.html',
 })
 export class ConfirmDialog {
-  readonly data = inject<ConfirmDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef = inject(MatDialogRef<ConfirmDialog, boolean>);
+  readonly activeModal = inject(NgbActiveModal);
+
+  // Set by the caller on the componentInstance returned from NgbModal.open()
+  // (the standard ng-bootstrap pattern — these are plain properties, not
+  // signal inputs, so they can be assigned imperatively after open()).
+  title = '';
+  message = '';
+  confirmLabel = 'Confirm';
+  cancelLabel = 'Cancel';
 
   confirm(): void {
-    this.dialogRef.close(true);
+    this.activeModal.close(true);
   }
 
   cancel(): void {
-    this.dialogRef.close(false);
+    this.activeModal.dismiss(false);
   }
 }

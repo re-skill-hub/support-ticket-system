@@ -1,34 +1,64 @@
-<div class="ticket-new-page">
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Raise a new ticket</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="form" (ngSubmit)="submit()">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Title</mat-label>
-          <input matInput formControlName="title" />
-          @if (form.controls.title.hasError('required')) {
-            <mat-error>Title is required</mat-error>
-          }
-        </mat-form-field>
+<div class="app-page ticket-new-page">
+  <div class="card">
+    <div class="card-body p-4">
+      <h1 class="h5 mb-4">Raise a new ticket</h1>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Description</mat-label>
-          <textarea matInput formControlName="description" rows="6"></textarea>
-          @if (form.controls.description.hasError('required')) {
-            <mat-error>Description is required</mat-error>
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="mb-3">
+          <label for="title" class="form-label">Title</label>
+          <input
+            id="title"
+            class="form-control"
+            formControlName="title"
+            [class.is-invalid]="form.controls.title.invalid && form.controls.title.touched"
+          />
+          @if (form.controls.title.invalid && form.controls.title.touched) {
+            <div class="invalid-feedback">Title is required.</div>
           }
-        </mat-form-field>
+        </div>
 
-        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || submitting()">
+        <div class="mb-3">
+          <label for="description" class="form-label">Description</label>
+          <textarea
+            id="description"
+            class="form-control"
+            formControlName="description"
+            rows="6"
+            [class.is-invalid]="form.controls.description.invalid && form.controls.description.touched"
+          ></textarea>
+          @if (form.controls.description.invalid && form.controls.description.touched) {
+            <div class="invalid-feedback">Description is required.</div>
+          }
+        </div>
+
+        <div class="row mb-4">
+          <div class="col-sm-6 mb-3 mb-sm-0">
+            <label for="priority" class="form-label">Priority</label>
+            <select id="priority" class="form-select" formControlName="priority">
+              @for (priority of priorities; track priority) {
+                <option [value]="priority">{{ priority }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="col-sm-6">
+            <label for="category" class="form-label">Category</label>
+            <select id="category" class="form-select" formControlName="category">
+              @for (category of categories; track category) {
+                <option [value]="category">{{ category }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" [disabled]="form.invalid || submitting()">
           @if (submitting()) {
-            <mat-spinner diameter="20" />
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           } @else {
             Submit ticket
           }
         </button>
       </form>
-    </mat-card-content>
-  </mat-card>
+    </div>
+  </div>
 </div>

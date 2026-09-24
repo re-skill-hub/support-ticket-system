@@ -1,18 +1,20 @@
 import { Component, computed, input } from '@angular/core';
-import { NgClass } from '@angular/common';
-import { MatChipsModule } from '@angular/material/chips';
 import { TicketStatus } from '../../types/ticket.types';
+
+const BADGE_CLASS: Record<TicketStatus, string> = {
+  Open: 'text-bg-primary',
+  InProgress: 'text-bg-warning',
+  Closed: 'text-bg-success',
+};
 
 @Component({
   selector: 'app-status-chip',
-  imports: [NgClass, MatChipsModule],
   templateUrl: './status-chip.html',
-  styleUrl: './status-chip.scss',
 })
 export class StatusChip {
   readonly status = input.required<TicketStatus>();
 
-  readonly cssClass = computed(() => `status-${this.status().toLowerCase()}`);
+  readonly badgeClass = computed(() => BADGE_CLASS[this.status()]);
 
   readonly label = computed(() => {
     switch (this.status()) {

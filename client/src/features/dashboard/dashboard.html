@@ -1,88 +1,108 @@
-<div class="dashboard-page">
-  <h2>Support Metrics</h2>
+<div class="app-page dashboard-page">
+  <h1 class="h4 mb-3">Support Metrics</h1>
 
   @if (loading()) {
-    <mat-spinner diameter="40" />
+    <div class="app-loading">
+      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      <span>Loading metrics…</span>
+    </div>
   } @else if (summary()) {
     @let s = summary()!;
     <div class="tiles">
-      <mat-card class="tile">
-        <mat-card-subtitle>Open</mat-card-subtitle>
-        <div class="value">{{ s.openCount }}</div>
-      </mat-card>
+      <div class="card tile">
+        <div class="card-body">
+          <p class="text-secondary small mb-1">Open</p>
+          <div class="value">{{ s.openCount }}</div>
+        </div>
+      </div>
 
-      <mat-card class="tile">
-        <mat-card-subtitle>In Progress</mat-card-subtitle>
-        <div class="value">{{ s.inProgressCount }}</div>
-      </mat-card>
+      <div class="card tile">
+        <div class="card-body">
+          <p class="text-secondary small mb-1">In Progress</p>
+          <div class="value">{{ s.inProgressCount }}</div>
+        </div>
+      </div>
 
-      <mat-card class="tile">
-        <mat-card-subtitle>Closed</mat-card-subtitle>
-        <div class="value">{{ s.closedCount }}</div>
-      </mat-card>
+      <div class="card tile">
+        <div class="card-body">
+          <p class="text-secondary small mb-1">Closed</p>
+          <div class="value">{{ s.closedCount }}</div>
+        </div>
+      </div>
 
-      <mat-card class="tile">
-        <mat-card-subtitle>Avg first response (min)</mat-card-subtitle>
-        <div class="value">{{ s.avgFirstResponseMinutes != null ? (s.avgFirstResponseMinutes | number: '1.0-1') : '—' }}</div>
-      </mat-card>
+      <div class="card tile">
+        <div class="card-body">
+          <p class="text-secondary small mb-1">Avg first response (min)</p>
+          <div class="value">{{ s.avgFirstResponseMinutes != null ? (s.avgFirstResponseMinutes | number: '1.0-1') : '—' }}</div>
+        </div>
+      </div>
 
-      <mat-card class="tile">
-        <mat-card-subtitle>Avg resolution (min)</mat-card-subtitle>
-        <div class="value">{{ s.avgResolutionMinutes != null ? (s.avgResolutionMinutes | number: '1.0-1') : '—' }}</div>
-      </mat-card>
+      <div class="card tile">
+        <div class="card-body">
+          <p class="text-secondary small mb-1">Avg resolution (min)</p>
+          <div class="value">{{ s.avgResolutionMinutes != null ? (s.avgResolutionMinutes | number: '1.0-1') : '—' }}</div>
+        </div>
+      </div>
     </div>
 
     <div class="charts">
-      <mat-card class="chart-card">
-        <mat-card-subtitle>Ticket status distribution</mat-card-subtitle>
+      <div class="card chart-card">
+        <div class="card-body">
+          <p class="text-secondary small mb-1">Ticket status distribution</p>
 
-        @if (totalCount() === 0) {
-          <p class="empty">No tickets yet.</p>
-        } @else {
-          <div class="donut-row">
-            <svg viewBox="0 0 36 36" class="donut">
-              @for (segment of statusSegments(); track segment.label) {
-                <circle
-                  cx="18"
-                  cy="18"
-                  [attr.r]="donutRadius"
-                  fill="transparent"
-                  [attr.stroke]="segment.color"
-                  stroke-width="4"
-                  [attr.stroke-dasharray]="segment.dasharray"
-                  [attr.stroke-dashoffset]="segment.dashoffset"
-                />
-              }
-              <text x="18" y="19" class="donut-total" text-anchor="middle">{{ totalCount() }}</text>
-            </svg>
+          @if (totalCount() === 0) {
+            <div class="app-empty-state">
+              <i class="bi bi-pie-chart"></i>
+              <p class="mb-0">No tickets yet.</p>
+            </div>
+          } @else {
+            <div class="donut-row">
+              <svg viewBox="0 0 36 36" class="donut">
+                @for (segment of statusSegments(); track segment.label) {
+                  <circle
+                    cx="18"
+                    cy="18"
+                    [attr.r]="donutRadius"
+                    fill="transparent"
+                    [attr.stroke]="segment.color"
+                    stroke-width="4"
+                    [attr.stroke-dasharray]="segment.dasharray"
+                    [attr.stroke-dashoffset]="segment.dashoffset"
+                  />
+                }
+                <text x="18" y="19" class="donut-total" text-anchor="middle">{{ totalCount() }}</text>
+              </svg>
 
-            <ul class="legend">
-              @for (segment of statusSegments(); track segment.label) {
-                <li>
-                  <span class="swatch" [style.background]="segment.color"></span>
-                  {{ segment.label }} &middot; {{ segment.count }} ({{ segment.pct | number: '1.0-0' }}%)
-                </li>
-              }
-            </ul>
-          </div>
-        }
-      </mat-card>
-
-      <mat-card class="chart-card">
-        <mat-card-subtitle>First response vs. resolution time</mat-card-subtitle>
-
-        <div class="bars">
-          @for (bar of timeBars(); track bar.label) {
-            <div class="bar-row">
-              <span class="bar-label">{{ bar.label }}</span>
-              <div class="bar-track">
-                <div class="bar-fill" [style.width.%]="bar.pct" [style.background]="bar.color"></div>
-              </div>
-              <span class="bar-value">{{ bar.minutes != null ? (bar.minutes | number: '1.0-1') : '—' }}</span>
+              <ul class="legend">
+                @for (segment of statusSegments(); track segment.label) {
+                  <li>
+                    <span class="swatch" [style.background]="segment.color"></span>
+                    {{ segment.label }} &middot; {{ segment.count }} ({{ segment.pct | number: '1.0-0' }}%)
+                  </li>
+                }
+              </ul>
             </div>
           }
         </div>
-      </mat-card>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-body">
+          <p class="text-secondary small mb-1">First response vs. resolution time</p>
+
+          <div class="bars">
+            @for (bar of timeBars(); track bar.label) {
+              <div class="bar-row">
+                <span class="bar-label">{{ bar.label }}</span>
+                <div class="bar-track">
+                  <div class="bar-fill" [style.width.%]="bar.pct" [style.background]="bar.color"></div>
+                </div>
+                <span class="bar-value">{{ bar.minutes != null ? (bar.minutes | number: '1.0-1') : '—' }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
     </div>
   }
 </div>

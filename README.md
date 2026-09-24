@@ -3,7 +3,7 @@
 A customer support ticketing system built as a microservices capstone: customers raise tickets, support agents respond and manage status, and response/resolution time is tracked as a measurable business outcome.
 
 - **ASP.NET Core Web API** (.NET 10) — three independent services, one database each
-- **Angular 22** (standalone components, signals, Angular Material) — customer and agent dashboards
+- **Angular 22** (standalone components, signals, Bootstrap 5 + ng-bootstrap) — customer and agent dashboards
 - **RabbitMQ** (via MassTransit) — event-driven communication between services
 - **SQL Server** — one shared instance, three isolated databases (`TicketServiceDb`, `ResponseServiceDb`, `NotificationServiceDb`)
 - **Docker Compose** — the entire stack, infra and app, in one command
@@ -18,6 +18,8 @@ A customer support ticketing system built as a microservices capstone: customers
 | **client** | Angular dashboard (served by nginx) | `4200` |
 
 Services communicate only through RabbitMQ events (`TicketCreated`, `TicketStatusChanged`, `ResponseAdded`) — there are no synchronous service-to-service calls and no cross-database joins. ResponseService and NotificationService build their own local read-models purely from consumed events (event-carried state transfer).
+
+![Architecture diagram: Angular client calling three independent services, each with its own database, exchanging events through RabbitMQ](docs/architecture-diagram.svg)
 
 Every service exposes a `GET /health` endpoint (checked by its own Docker healthcheck) and logs structured JSON to the console enriched with a `CorrelationId` that flows from the originating HTTP request through every downstream consumer — so a single ticket's event chain is traceable across all three services' logs.
 
@@ -109,3 +111,5 @@ support-ticket-system/
 ## Scope notes
 
 Deliberately left out for this capstone (see the project plan for the full reasoning): no API gateway/BFF — the Angular app calls all three services' ports directly; no JWT refresh-token rotation — a single longer-lived access token is used instead; no Azure deployment — Docker Compose is the deployment target for this submission, with Azure (e.g. Container Apps + Azure SQL + Azure Service Bus) left as a future extension.
+
+For how this as-built system compares against `docs/requirement/Design Document.docx` specifically — what was implemented to close a gap, what was intentionally kept as an improvement over the doc's generic template, and what was left out of scope — see `docs/requirement/gap-analysis.md`.

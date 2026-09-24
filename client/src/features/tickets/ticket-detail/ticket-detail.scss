@@ -1,10 +1,8 @@
 .ticket-detail-page {
-  max-width: 700px;
-  margin: 24px auto;
-  padding: 0 16px;
+  max-width: 760px;
 
   .summary-card {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
   }
 
   .description {
@@ -20,8 +18,7 @@
   }
 
   .status-select {
-    width: 160px;
-    margin-bottom: -1.25em;
+    width: auto;
   }
 
   .thread {
@@ -32,19 +29,10 @@
   }
 
   .response-card.agent {
-    background: #e3f2fd;
-  }
-
-  .empty {
-    color: rgba(0, 0, 0, 0.6);
+    background: var(--bs-primary-bg-subtle);
   }
 
   .reply-form {
     margin-top: 16px;
-
-    .full-width {
-      width: 100%;
-      display: block;
-    }
   }
 }

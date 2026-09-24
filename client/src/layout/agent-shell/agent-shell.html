@@ -1,0 +1,73 @@
+<div class="d-flex" style="min-height: 100vh">
+  <aside class="d-none d-lg-flex flex-column bg-dark text-white p-3 sidebar">
+    <a class="navbar-brand text-white fw-semibold mb-1" routerLink="/dashboard">Support Ticketing</a>
+    <div class="text-white-50 small mb-4">Agent Console</div>
+
+    <ul class="nav nav-pills flex-column mb-auto gap-1">
+      <li class="nav-item">
+        <a class="nav-link text-white" routerLink="/agent/queue" routerLinkActive="active">
+          <i class="bi bi-inbox me-2"></i>Ticket Queue
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white" routerLink="/dashboard" routerLinkActive="active">
+          <i class="bi bi-bar-chart-line me-2"></i>Dashboard
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-white" routerLink="/notifications" routerLinkActive="active">
+          <i class="bi bi-bell me-2"></i>Notifications
+          @if (notificationService.unreadCount() > 0) {
+            <span class="badge rounded-pill text-bg-danger ms-2">{{ notificationService.unreadCount() }}</span>
+          }
+        </a>
+      </li>
+    </ul>
+
+    <hr class="text-white-50" />
+    <div class="small mb-2 text-white-50">{{ authService.currentUser()?.fullName }}</div>
+    <button class="btn btn-outline-light btn-sm w-100" (click)="logout()">Logout</button>
+  </aside>
+
+  <div class="flex-grow-1 d-flex flex-column">
+    <nav class="navbar navbar-dark bg-dark d-lg-none">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-semibold" routerLink="/dashboard">Support Ticketing</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          (click)="collapsed.set(!collapsed())"
+          [attr.aria-expanded]="!collapsed()"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      </div>
+    </nav>
+    <div class="d-lg-none bg-dark" [ngbCollapse]="collapsed()">
+      <ul class="navbar-nav p-3">
+        <li class="nav-item">
+          <a class="nav-link text-white" routerLink="/agent/queue" routerLinkActive="active">Ticket Queue</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-white" routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-white" routerLink="/notifications" routerLinkActive="active">
+            Notifications
+            @if (notificationService.unreadCount() > 0) {
+              <span class="badge rounded-pill text-bg-danger ms-2">{{ notificationService.unreadCount() }}</span>
+            }
+          </a>
+        </li>
+        <li class="nav-item mt-2">
+          <button class="btn btn-outline-light btn-sm w-100" (click)="logout()">Logout</button>
+        </li>
+      </ul>
+    </div>
+
+    <main class="flex-grow-1 bg-body-tertiary p-3 p-lg-4">
+      <router-outlet />
+    </main>
+  </div>
+</div>

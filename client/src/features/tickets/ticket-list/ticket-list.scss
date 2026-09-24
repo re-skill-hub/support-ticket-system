@@ -1,8 +1,4 @@
 .ticket-list-page {
-  max-width: 900px;
-  margin: 24px auto;
-  padding: 0 16px;
-
   .header {
     display: flex;
     align-items: center;
@@ -11,22 +7,13 @@
   }
 
   .search {
-    width: 100%;
     max-width: 320px;
-    margin-bottom: 8px;
-  }
-
-  table {
-    width: 100%;
-  }
-
-  .empty,
-  .no-data {
-    color: rgba(0, 0, 0, 0.6);
+    margin-bottom: 12px;
   }
 
   .no-data {
     text-align: center;
-    padding: 16px;
+    padding: 24px;
+    color: var(--bs-secondary-color);
   }
 }

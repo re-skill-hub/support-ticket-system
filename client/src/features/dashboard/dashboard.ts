@@ -1,7 +1,5 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MetricsService } from '../../core/services/metrics.service';
 import { MetricsSummary } from '../../types/metrics.types';
 
@@ -25,7 +23,7 @@ const DONUT_RADIUS = 15.9155;
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DecimalPipe, MatCardModule, MatProgressSpinnerModule],
+  imports: [DecimalPipe],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })

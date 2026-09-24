@@ -1,68 +1,77 @@
-<div class="ticket-detail-page">
+<div class="app-page ticket-detail-page">
   @if (loading()) {
-    <mat-spinner diameter="40" />
+    <div class="app-loading">
+      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      <span>Loading ticket…</span>
+    </div>
   } @else if (ticket()) {
     @let t = ticket()!;
-    <mat-card class="summary-card">
-      <mat-card-header>
-        <mat-card-title>{{ t.title }}</mat-card-title>
-        <mat-card-subtitle>Created {{ t.createdAtUtc | date: 'medium' }}</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
+    <div class="card summary-card">
+      <div class="card-body">
+        <h1 class="h5 mb-1">{{ t.title }}</h1>
+        <p class="text-secondary small mb-3">Created {{ t.createdAtUtc | date: 'medium' }}</p>
+
         <p class="description">{{ t.description }}</p>
 
         <div class="status-row">
           <app-status-chip [status]="t.status" />
+          <app-priority-chip [priority]="t.priority" />
+          <span class="category text-secondary small">{{ t.category }}</span>
 
           @if (authService.isAgent()) {
-            <mat-form-field appearance="outline" class="status-select">
-              <mat-label>Status</mat-label>
-              <mat-select [formControl]="statusControl">
-                @for (status of statuses; track status) {
-                  <mat-option [value]="status">{{ status }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            <select class="form-select form-select-sm status-select" [formControl]="statusControl" aria-label="Status">
+              @for (status of statuses; track status) {
+                <option [value]="status">{{ status }}</option>
+              }
+            </select>
 
             @if (!t.assignedAgentId) {
-              <button mat-stroked-button (click)="assignToSelf()">Assign to me</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="assignToSelf()">Assign to me</button>
             }
           }
         </div>
-      </mat-card-content>
-    </mat-card>
+      </div>
+    </div>
 
-    <h3>Responses</h3>
+    <h2 class="h6 text-secondary text-uppercase mt-4 mb-2">Responses</h2>
 
     @if (responses().length === 0) {
-      <p class="empty">No responses yet.</p>
+      <div class="app-empty-state">
+        <i class="bi bi-chat-square-text"></i>
+        <p class="mb-0">No responses yet.</p>
+      </div>
     } @else {
       <div class="thread">
         @for (response of responses(); track response.id) {
-          <mat-card class="response-card" [class.agent]="response.authorRole === 'SupportAgent'">
-            <mat-card-subtitle>{{ response.authorRole }} &middot; {{ response.createdAtUtc | date: 'short' }}</mat-card-subtitle>
-            <mat-card-content>{{ response.message }}</mat-card-content>
-          </mat-card>
+          <div class="card response-card" [class.agent]="response.authorRole === 'SupportAgent'">
+            <div class="card-body py-2">
+              <p class="text-secondary small mb-1">{{ response.authorRole }} &middot; {{ response.createdAtUtc | date: 'short' }}</p>
+              <p class="mb-0">{{ response.message }}</p>
+            </div>
+          </div>
         }
       </div>
     }
 
-    <mat-divider />
+    <hr />
 
-    <form class="reply-form" [formGroup]="replyForm" (ngSubmit)="sendReply()">
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Write a reply</mat-label>
-        <textarea matInput formControlName="message" rows="3"></textarea>
-      </mat-form-field>
-      <button mat-flat-button color="primary" type="submit" [disabled]="replyForm.invalid || sending()">
+    <form class="reply-form" [formGroup]="replyForm" (ngSubmit)="sendReply()" novalidate>
+      <div class="mb-3">
+        <label for="message" class="form-label">Write a reply</label>
+        <textarea id="message" class="form-control" formControlName="message" rows="3"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary" [disabled]="replyForm.invalid || sending()">
         @if (sending()) {
-          <mat-spinner diameter="20" />
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
         } @else {
           Send
         }
       </button>
     </form>
   } @else {
-    <p class="empty">Ticket not found.</p>
+    <div class="app-empty-state">
+      <i class="bi bi-exclamation-circle"></i>
+      <p class="mb-0">Ticket not found.</p>
+    </div>
   }
 </div>

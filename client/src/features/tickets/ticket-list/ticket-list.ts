@@ -1,70 +1,51 @@
-import { Component, OnInit, inject, signal, viewChild, effect } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { MatTableModule, MatTableDataSource } from '@angular/material/table';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatIconModule } from '@angular/material/icon';
-import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
-import { MatSort, MatSortModule } from '@angular/material/sort';
+import { NgbPagination } from '@ng-bootstrap/ng-bootstrap';
 import { TicketService } from '../../../core/services/ticket.service';
 import { Ticket } from '../../../types/ticket.types';
 import { StatusChip } from '../../../shared/status-chip/status-chip';
+import { PriorityChip } from '../../../shared/priority-chip/priority-chip';
+import { SortableHeader, SortDirection, SortEvent } from '../../../shared/sortable-header/sortable-header.directive';
+
+const PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-ticket-list',
-  imports: [
-    DatePipe,
-    RouterLink,
-    MatTableModule,
-    MatButtonModule,
-    MatProgressSpinnerModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
-    MatPaginatorModule,
-    MatSortModule,
-    StatusChip,
-  ],
+  imports: [DatePipe, RouterLink, NgbPagination, StatusChip, PriorityChip, SortableHeader],
   templateUrl: './ticket-list.html',
   styleUrl: './ticket-list.scss',
 })
 export class TicketList implements OnInit {
   private readonly ticketService = inject(TicketService);
 
-  private readonly sort = viewChild(MatSort);
-  private readonly paginator = viewChild(MatPaginator);
-
   readonly loading = signal(true);
-  readonly hasAnyTickets = signal(false);
-  readonly dataSource = new MatTableDataSource<Ticket>([]);
-  readonly columns = ['title', 'status', 'createdAtUtc', 'actions'];
+  readonly tickets = signal<Ticket[]>([]);
+  readonly searchTerm = signal('');
+  readonly sortColumn = signal('createdAtUtc');
+  readonly sortDirection = signal<SortDirection>('desc');
+  readonly page = signal(1);
+  readonly pageSize = PAGE_SIZE;
 
-  constructor() {
-    this.dataSource.filterPredicate = (ticket, filter) => ticket.title.toLowerCase().includes(filter);
+  readonly hasAnyTickets = computed(() => this.tickets().length > 0);
 
-    effect(() => {
-      const sort = this.sort();
-      if (sort) {
-        this.dataSource.sort = sort;
-      }
-    });
+  readonly filtered = computed(() => {
+    const term = this.searchTerm().trim().toLowerCase();
+    const rows = term ? this.tickets().filter((t) => t.title.toLowerCase().includes(term)) : this.tickets();
+    return this.sortRows(rows);
+  });
 
-    effect(() => {
-      const paginator = this.paginator();
-      if (paginator) {
-        this.dataSource.paginator = paginator;
-      }
-    });
-  }
+  readonly total = computed(() => this.filtered().length);
+
+  readonly pagedTickets = computed(() => {
+    const start = (this.page() - 1) * this.pageSize;
+    return this.filtered().slice(start, start + this.pageSize);
+  });
 
   ngOnInit(): void {
     this.ticketService.getMine().subscribe({
       next: (tickets) => {
-        this.dataSource.data = tickets;
-        this.hasAnyTickets.set(tickets.length > 0);
+        this.tickets.set(tickets);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -72,7 +53,28 @@ export class TicketList implements OnInit {
   }
 
   applyFilter(value: string): void {
-    this.dataSource.filter = value.trim().toLowerCase();
-    this.dataSource.paginator?.firstPage();
+    this.searchTerm.set(value);
+    this.page.set(1);
+  }
+
+  onSort({ column, direction }: SortEvent): void {
+    this.sortColumn.set(column);
+    this.sortDirection.set(direction);
+  }
+
+  private sortRows(rows: Ticket[]): Ticket[] {
+    const column = this.sortColumn();
+    const direction = this.sortDirection();
+    if (!direction) {
+      return rows;
+    }
+
+    const sorted = [...rows].sort((a, b) => {
+      const valueA = String(a[column as keyof Ticket] ?? '');
+      const valueB = String(b[column as keyof Ticket] ?? '');
+      return valueA.localeCompare(valueB);
+    });
+
+    return direction === 'asc' ? sorted : sorted.reverse();
   }
 }

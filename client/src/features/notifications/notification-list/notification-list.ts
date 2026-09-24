@@ -1,16 +1,12 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { MatListModule } from '@angular/material/list';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { NotificationService } from '../../../core/services/notification.service';
 import { Notification } from '../../../types/notification.types';
 
 @Component({
   selector: 'app-notification-list',
-  imports: [DatePipe, RouterLink, MatListModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
+  imports: [DatePipe, RouterLink],
   templateUrl: './notification-list.html',
   styleUrl: './notification-list.scss',
 })

@@ -2,43 +2,26 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormControl, Validators } from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatSelectModule } from '@angular/material/select';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatDialog } from '@angular/material/dialog';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../../core/services/auth.service';
 import { TicketService } from '../../../core/services/ticket.service';
 import { ResponseService } from '../../../core/services/response.service';
 import { Ticket, TicketStatus } from '../../../types/ticket.types';
 import { TicketResponseMessage } from '../../../types/response.types';
 import { StatusChip } from '../../../shared/status-chip/status-chip';
+import { PriorityChip } from '../../../shared/priority-chip/priority-chip';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-ticket-detail',
-  imports: [
-    DatePipe,
-    ReactiveFormsModule,
-    MatCardModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatSelectModule,
-    MatProgressSpinnerModule,
-    MatDividerModule,
-    StatusChip,
-  ],
+  imports: [DatePipe, ReactiveFormsModule, StatusChip, PriorityChip],
   templateUrl: './ticket-detail.html',
   styleUrl: './ticket-detail.scss',
 })
 export class TicketDetail implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
-  private readonly dialog = inject(MatDialog);
+  private readonly modal = inject(NgbModal);
   readonly authService = inject(AuthService);
   private readonly ticketService = inject(TicketService);
   private readonly responseService = inject(ResponseService);
@@ -116,22 +99,21 @@ export class TicketDetail implements OnInit {
     }
 
     if (status === 'Closed') {
-      this.dialog
-        .open(ConfirmDialog, {
-          data: {
-            title: 'Close this ticket?',
-            message: 'Closing a ticket is final — there is no way to reopen it afterward.',
-            confirmLabel: 'Close ticket',
-          },
-        })
-        .afterClosed()
-        .subscribe((confirmed) => {
+      const modalRef = this.modal.open(ConfirmDialog);
+      modalRef.componentInstance.title = 'Close this ticket?';
+      modalRef.componentInstance.message = 'Closing a ticket is final — there is no way to reopen it afterward.';
+      modalRef.componentInstance.confirmLabel = 'Close ticket';
+
+      modalRef.result.then(
+        (confirmed) => {
           if (confirmed) {
             this.applyStatusChange(status);
           } else {
             this.statusControl.setValue(ticket.status, { emitEvent: false });
           }
-        });
+        },
+        () => this.statusControl.setValue(ticket.status, { emitEvent: false }),
+      );
       return;
     }
 

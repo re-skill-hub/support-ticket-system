@@ -1,10 +1,9 @@
 import { Component } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-home',
-  imports: [MatCardModule],
+  imports: [],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })

@@ -1,8 +1,9 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable, computed, signal } from '@angular/core';
 import { Observable, catchError, firstValueFrom, of, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthResponse, AuthUser, LoginRequest, RegisterRequest } from '../../types/auth.types';
+import { SILENT_AUTH_CHECK } from '../interceptors/error.interceptor';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -39,13 +40,15 @@ export class AuthService {
    */
   initialize(): Promise<void> {
     return firstValueFrom(
-      this.http.get<AuthResponse>(`${this.baseUrl}/me`).pipe(
-        tap((response) => this.setSession(response)),
-        catchError(() => {
-          this.currentUser.set(null);
-          return of(null);
-        }),
-      ),
+      this.http
+        .get<AuthResponse>(`${this.baseUrl}/me`, { context: new HttpContext().set(SILENT_AUTH_CHECK, true) })
+        .pipe(
+          tap((response) => this.setSession(response)),
+          catchError(() => {
+            this.currentUser.set(null);
+            return of(null);
+          }),
+        ),
     ).then(() => undefined);
   }
 

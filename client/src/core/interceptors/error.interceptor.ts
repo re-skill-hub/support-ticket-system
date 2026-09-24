@@ -1,19 +1,30 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpContextToken, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { ToastService } from '../services/toast.service';
+
+/**
+ * Set on a request to suppress the global error toast/logout entirely — for checks
+ * like AuthService.initialize()'s GET /me, where a 401 just means "not logged in yet"
+ * (e.g. every anonymous visit to /login) and isn't a real error to surface.
+ */
+export const SILENT_AUTH_CHECK = new HttpContextToken<boolean>(() => false);
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
-  const snackBar = inject(MatSnackBar);
+  const toastService = inject(ToastService);
   const authService = inject(AuthService);
   const router = inject(Router);
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
+      if (error.status === 401 && req.context.get(SILENT_AUTH_CHECK)) {
+        return throwError(() => error);
+      }
+
       const message = extractMessage(error);
-      snackBar.open(message, 'Dismiss', { duration: 4000 });
+      toastService.show(message, 'danger');
 
       if (error.status === 401 && authService.isAuthenticated()) {
         authService.logout();

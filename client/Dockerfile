@@ -1,7 +1,7 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 
-COPY client/package.json client/package-lock.json ./
+COPY client/package.json client/package-lock.json client/.npmrc ./
 RUN npm ci
 
 COPY client/ .

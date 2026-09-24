@@ -1,2 +1,7 @@
-<app-nav />
-<router-outlet />
+@if (isAgent()) {
+  <app-agent-shell />
+} @else {
+  <app-nav />
+  <router-outlet />
+}
+<app-toast-container />

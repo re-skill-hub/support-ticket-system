@@ -1,30 +1,49 @@
-<mat-toolbar color="primary" class="toolbar">
-  <span class="brand" routerLink="/">Support Ticketing</span>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" routerLink="/">Support Ticketing</a>
 
-  @if (authService.isAuthenticated()) {
-    <span class="spacer"></span>
-
-    @if (authService.isCustomer()) {
-      <a mat-button routerLink="/tickets">My Tickets</a>
-      <a mat-button routerLink="/tickets/new">New Ticket</a>
-    }
-
-    @if (authService.isAgent()) {
-      <a mat-button routerLink="/agent/queue">Ticket Queue</a>
-      <a mat-button routerLink="/dashboard">Dashboard</a>
-    }
-
-    <a mat-button routerLink="/notifications">
-      <mat-icon
-        [matBadge]="notificationService.unreadCount()"
-        [matBadgeHidden]="notificationService.unreadCount() === 0"
-        matBadgeColor="accent"
-        matBadgeSize="small"
-        >notifications</mat-icon
+    @if (authService.isAuthenticated()) {
+      <button
+        class="navbar-toggler"
+        type="button"
+        (click)="collapsed.set(!collapsed())"
+        [attr.aria-expanded]="!collapsed()"
+        aria-label="Toggle navigation"
       >
-    </a>
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-    <span class="user-name">{{ authService.currentUser()?.fullName }}</span>
-    <button mat-button (click)="logout()">Logout</button>
-  }
-</mat-toolbar>
+      <div class="collapse navbar-collapse" [ngbCollapse]="collapsed()">
+        <ul class="navbar-nav me-auto">
+          @if (authService.isCustomer()) {
+            <li class="nav-item">
+              <a class="nav-link" routerLink="/tickets" routerLinkActive="active">My Tickets</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" routerLink="/tickets/new" routerLinkActive="active">New Ticket</a>
+            </li>
+          }
+        </ul>
+
+        <ul class="navbar-nav align-items-lg-center">
+          <li class="nav-item">
+            <a class="nav-link position-relative" routerLink="/notifications" routerLinkActive="active">
+              <i class="bi bi-bell"></i>
+              @if (notificationService.unreadCount() > 0) {
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">
+                  {{ notificationService.unreadCount() }}
+                </span>
+              }
+            </a>
+          </li>
+          <li class="nav-item">
+            <span class="nav-link disabled text-white-50">{{ authService.currentUser()?.fullName }}</span>
+          </li>
+          <li class="nav-item">
+            <button class="btn btn-outline-light btn-sm ms-lg-2" (click)="logout()">Logout</button>
+          </li>
+        </ul>
+      </div>
+    }
+  </div>
+</nav>
