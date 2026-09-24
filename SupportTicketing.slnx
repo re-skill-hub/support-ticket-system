@@ -5,4 +5,9 @@
     <Project Path="services/ResponseService/ResponseService.csproj" />
     <Project Path="services/TicketService/TicketService.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="services/NotificationService.Tests/NotificationService.Tests.csproj" />
+    <Project Path="services/ResponseService.Tests/ResponseService.Tests.csproj" />
+    <Project Path="services/TicketService.Tests/TicketService.Tests.csproj" />
+  </Folder>
 </Solution>
