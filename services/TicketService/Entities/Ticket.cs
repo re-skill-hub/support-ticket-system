@@ -8,6 +8,8 @@ public class Ticket
     public string CustomerId { get; set; } = string.Empty;
     public string? AssignedAgentId { get; set; }
     public TicketStatus Status { get; set; } = TicketStatus.Open;
+    public TicketPriority Priority { get; set; } = TicketPriority.Medium;
+    public TicketCategory Category { get; set; } = TicketCategory.General;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? ClosedAtUtc { get; set; }

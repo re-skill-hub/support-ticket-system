@@ -5,7 +5,9 @@ namespace TicketService.Dtos;
 
 public record CreateTicketRequest(
     [Required, MaxLength(200)] string Title,
-    [Required, MaxLength(4000)] string Description);
+    [Required, MaxLength(4000)] string Description,
+    TicketPriority Priority,
+    TicketCategory Category);
 
 public record UpdateTicketStatusRequest(TicketStatus Status);
 
@@ -16,6 +18,8 @@ public record TicketResponse(
     string CustomerId,
     string? AssignedAgentId,
     TicketStatus Status,
+    TicketPriority Priority,
+    TicketCategory Category,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     DateTime? ClosedAtUtc)
@@ -27,6 +31,8 @@ public record TicketResponse(
         ticket.CustomerId,
         ticket.AssignedAgentId,
         ticket.Status,
+        ticket.Priority,
+        ticket.Category,
         ticket.CreatedAtUtc,
         ticket.UpdatedAtUtc,
         ticket.ClosedAtUtc);

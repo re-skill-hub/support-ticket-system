@@ -18,6 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(t => t.Description).HasMaxLength(4000).IsRequired();
             entity.HasIndex(t => t.CustomerId);
             entity.HasIndex(t => t.Status);
+            entity.HasIndex(t => t.Priority);
         });
     }
 }

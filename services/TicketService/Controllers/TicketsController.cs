@@ -25,6 +25,8 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
         {
             Title = request.Title,
             Description = request.Description,
+            Priority = request.Priority,
+            Category = request.Category,
             CustomerId = User.GetUserId(),
         };
 
@@ -57,12 +59,17 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
 
     [HttpGet]
     [Authorize(Roles = Roles.SupportAgent)]
-    public async Task<ActionResult<IEnumerable<TicketResponse>>> GetAll([FromQuery] TicketStatus? status)
+    public async Task<ActionResult<IEnumerable<TicketResponse>>> GetAll([FromQuery] TicketStatus? status, [FromQuery] TicketPriority? priority)
     {
         var query = db.Tickets.AsQueryable();
         if (status is not null)
         {
             query = query.Where(t => t.Status == status);
+        }
+
+        if (priority is not null)
+        {
+            query = query.Where(t => t.Priority == priority);
         }
 
         var tickets = await query.OrderByDescending(t => t.CreatedAtUtc).ToListAsync();

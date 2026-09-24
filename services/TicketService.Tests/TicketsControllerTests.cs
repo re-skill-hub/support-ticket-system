@@ -51,12 +51,14 @@ public class TicketsControllerTests
         var publishEndpoint = new Mock<IPublishEndpoint>();
         var controller = CreateController(db, publishEndpoint, "customer-1", Roles.Customer);
 
-        var result = await controller.Create(new CreateTicketRequest("Broken printer", "Won't power on"));
+        var result = await controller.Create(new CreateTicketRequest("Broken printer", "Won't power on", TicketPriority.High, TicketCategory.Technical));
 
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         var response = Assert.IsType<TicketResponse>(created.Value);
         Assert.Equal("customer-1", response.CustomerId);
         Assert.Equal(TicketStatus.Open, response.Status);
+        Assert.Equal(TicketPriority.High, response.Priority);
+        Assert.Equal(TicketCategory.Technical, response.Category);
 
         Assert.Single(db.Tickets);
         publishEndpoint.Verify(p => p.Publish(
@@ -95,12 +97,31 @@ public class TicketsControllerTests
 
         var controller = CreateController(db, new Mock<IPublishEndpoint>(), "agent-1", Roles.SupportAgent);
 
-        var result = await controller.GetAll(TicketStatus.Closed);
+        var result = await controller.GetAll(TicketStatus.Closed, priority: null);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var tickets = Assert.IsAssignableFrom<IEnumerable<TicketResponse>>(ok.Value);
         Assert.Single(tickets);
         Assert.Equal(TicketStatus.Closed, tickets.Single().Status);
+    }
+
+    [Fact]
+    public async Task GetAll_FiltersByPriority_WhenProvided()
+    {
+        using var db = CreateDbContext();
+        db.Tickets.AddRange(
+            new Ticket { CustomerId = "customer-1", Title = "Urgent one", Description = "d", Priority = TicketPriority.Urgent },
+            new Ticket { CustomerId = "customer-1", Title = "Low one", Description = "d", Priority = TicketPriority.Low });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, new Mock<IPublishEndpoint>(), "agent-1", Roles.SupportAgent);
+
+        var result = await controller.GetAll(status: null, priority: TicketPriority.Urgent);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var tickets = Assert.IsAssignableFrom<IEnumerable<TicketResponse>>(ok.Value);
+        Assert.Single(tickets);
+        Assert.Equal(TicketPriority.Urgent, tickets.Single().Priority);
     }
 
     [Fact]
