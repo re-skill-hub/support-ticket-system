@@ -99,7 +99,7 @@ The same id appears in all three because the HTTP request's correlation id is th
 
 ```
 support-ticket-system/
-├── docker-compose.yml
+├── docker-compose.yaml
 ├── services/
 │   ├── Contracts/            # shared event DTOs, JWT wiring, observability — no domain entities
 │   ├── TicketService/        # Identity + ticket CRUD

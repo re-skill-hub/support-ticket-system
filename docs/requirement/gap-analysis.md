@@ -42,7 +42,7 @@ Snapshot date: 2026-09-24.
 
 | Design doc requirement | Current state | Resolution |
 |---|---|---|
-| Azure DevOps build pipeline (restore/build/test/publish) | None existed | **Implemented, adapted.** `.github/workflows/ci.yml` (GitHub Actions, since there's no Azure DevOps org for this capstone) — functionally the same stages: restore/build/test the .NET solution, then `npm ci`/test/build the Angular client, then a `docker build` per service and for the client as the "publish artifacts" equivalent, validating that every Dockerfile still builds. |
+| Azure DevOps build pipeline (restore/build/test/publish) | None existed | **Implemented, adapted.** `.github/workflows/ci.yaml` (GitHub Actions, since there's no Azure DevOps org for this capstone) — functionally the same stages: restore/build/test the .NET solution, then `npm ci`/test/build the Angular client, then a `docker build` per service and for the client as the "publish artifacts" equivalent, validating that every Dockerfile still builds. |
 | Deployment to Azure Kubernetes Service (AKS) | None existed; README already deferred Azure/AKS as a stated future extension | **Implemented, adapted.** `k8s/` holds Deployment + Service manifests for all four app components plus `sqlserver`/`rabbitmq` (self-contained for a local demo), built and validated against **Docker Desktop's built-in Kubernetes** rather than real AKS — same manifest shape (ordinary Deployments/Services, no Docker-Desktop-specific fields), just a single local node instead of a managed multi-node cluster, since no Azure subscription is available for this capstone. `k8s/README.md` documents the local-vs-AKS scope and what would change to actually target AKS (registry push, managed SQL/broker, ingress). |
 
 ## Backend test coverage
