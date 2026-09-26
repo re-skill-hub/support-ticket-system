@@ -61,12 +61,9 @@ Data persists across restarts via named volumes (`sqlserver-data`, `rabbitmq-dat
 
 ## Logging in
 
-A support agent account is seeded automatically on TicketService's first startup:
+New accounts registered through the Angular app become **Customers**. Support-agent accounts must be provisioned through an administrator-controlled process; no reusable support credentials are shipped with the application.
 
-- **Email:** `agent@support.local`
-- **Password:** `Agent#Pass123`
-
-Any new account registered through the Angular app's Register page becomes a **Customer**. There is no self-service way to create additional agents — that's intentionally out of scope for this capstone.
+There is no self-service way to create additional agents — that's intentionally out of scope for this capstone.
 
 ## Using the app
 
@@ -77,7 +74,7 @@ Any new account registered through the Angular app's Register page becomes a **C
 4. Check the notification bell for updates on your tickets.
 
 **As the support agent:**
-1. Log in with the seeded credentials above.
+1. Log in with credentials provisioned by an administrator.
 2. "Ticket Queue" lists all tickets, filterable by status.
 3. Open a ticket, "Assign to me", reply — the ticket automatically flips from `Open` to `InProgress` on its first response.
 4. Change status to `Closed` when resolved.

@@ -3,6 +3,7 @@ using Contracts.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using TicketService.Dtos;
 using TicketService.Entities;
 using TicketService.Services;
@@ -13,12 +14,14 @@ namespace TicketService.Controllers;
 [Route("api/auth")]
 public class AuthController(
     UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
     TokenService tokenService,
     JwtSettings jwtSettings,
     IHostEnvironment environment) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
         var user = new ApplicationUser
@@ -43,10 +46,11 @@ public class AuthController(
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
         var user = await userManager.FindByEmailAsync(request.Email);
-        if (user is null || !await userManager.CheckPasswordAsync(user, request.Password))
+        if (user is null || !(await signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true)).Succeeded)
         {
             return Unauthorized();
         }

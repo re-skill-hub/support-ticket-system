@@ -1,6 +1,7 @@
 using Contracts.Auth;
 using Contracts.Data;
 using Contracts.Observability;
+using Contracts.Security;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using NotificationService.Consumers;
@@ -66,6 +67,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 app.UseCorrelationId();
+app.UseRouting();
+app.UseRequestOriginProtection(builder.Configuration);
 
 app.UseCors("AngularClient");
 
