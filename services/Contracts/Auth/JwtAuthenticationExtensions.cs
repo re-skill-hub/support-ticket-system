@@ -20,6 +20,13 @@ public static class JwtAuthenticationExtensions
         var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
             ?? throw new InvalidOperationException("Missing Jwt configuration section.");
 
+        if (string.IsNullOrWhiteSpace(jwtSettings.Secret)
+            || jwtSettings.Secret.Contains("change-me", StringComparison.OrdinalIgnoreCase)
+            || Encoding.UTF8.GetByteCount(jwtSettings.Secret) < 32)
+        {
+            throw new InvalidOperationException("Jwt:Secret must be a unique value with at least 32 UTF-8 bytes.");
+        }
+
         services.AddSingleton(jwtSettings);
 
         services

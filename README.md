@@ -21,7 +21,7 @@ Services communicate only through RabbitMQ events (`TicketCreated`, `TicketStatu
 
 ![Architecture diagram: Angular client calling three independent services, each with its own database, exchanging events through RabbitMQ](docs/architecture-diagram.svg)
 
-Every service exposes a `GET /health` endpoint (checked by its own Docker healthcheck) and logs structured JSON to the console enriched with a `CorrelationId` that flows from the originating HTTP request through every downstream consumer — so a single ticket's event chain is traceable across all three services' logs.
+Every service exposes `GET /health/live` (process-alive only, checked by its own Docker healthcheck) and `GET /health/ready` (SQL Server + RabbitMQ dependency check, used by Kubernetes readiness probes) — split so a transient dependency blip pulls a pod out of rotation instead of restarting it. Every service also logs structured JSON to the console enriched with a `CorrelationId` that flows from the originating HTTP request through every downstream consumer — so a single ticket's event chain is traceable across all three services' logs.
 
 ## Prerequisites
 
@@ -61,12 +61,9 @@ Data persists across restarts via named volumes (`sqlserver-data`, `rabbitmq-dat
 
 ## Logging in
 
-A support agent account is seeded automatically on TicketService's first startup:
+New accounts registered through the Angular app become **Customers**. Support-agent accounts must be provisioned through an administrator-controlled process; no reusable support credentials are shipped with the application.
 
-- **Email:** `agent@support.local`
-- **Password:** `Agent#Pass123`
-
-Any new account registered through the Angular app's Register page becomes a **Customer**. There is no self-service way to create additional agents — that's intentionally out of scope for this capstone.
+There is no self-service way to create additional agents — that's intentionally out of scope for this capstone.
 
 ## Using the app
 
@@ -77,7 +74,7 @@ Any new account registered through the Angular app's Register page becomes a **C
 4. Check the notification bell for updates on your tickets.
 
 **As the support agent:**
-1. Log in with the seeded credentials above.
+1. Log in with credentials provisioned by an administrator.
 2. "Ticket Queue" lists all tickets, filterable by status.
 3. Open a ticket, "Assign to me", reply — the ticket automatically flips from `Open` to `InProgress` on its first response.
 4. Change status to `Closed` when resolved.
@@ -110,6 +107,6 @@ support-ticket-system/
 
 ## Scope notes
 
-Deliberately left out for this capstone (see the project plan for the full reasoning): no API gateway/BFF — the Angular app calls all three services' ports directly; no JWT refresh-token rotation — a single longer-lived access token is used instead; no Azure deployment — Docker Compose is the deployment target for this submission, with Azure (e.g. Container Apps + Azure SQL + Azure Service Bus) left as a future extension.
+Deliberately left out for this capstone (see the project plan for the full reasoning): no API gateway/BFF — the Angular app calls all three services' ports directly; no JWT refresh-token rotation — a single longer-lived access token is used instead. Docker Compose is the local-dev target described above; a trial deployment to Azure Kubernetes Service via an Azure DevOps pipeline also exists — see `docs/azure-deployment.md` — with SQL Server and RabbitMQ still self-hosted in-cluster rather than replaced by managed Azure SQL/a managed broker, which the same doc calls out as the gap before this could be a real production deployment.
 
 For how this as-built system compares against `docs/requirement/Design Document.docx` specifically — what was implemented to close a gap, what was intentionally kept as an improvement over the doc's generic template, and what was left out of scope — see `docs/requirement/gap-analysis.md`.

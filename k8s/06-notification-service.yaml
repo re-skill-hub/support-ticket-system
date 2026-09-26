@@ -67,14 +67,14 @@ spec:
               value: "Server=sqlserver,1433;Database=NotificationServiceDb;User Id=sa;Password=$(MSSQL_SA_PASSWORD);TrustServerCertificate=True;"
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 8080
             initialDelaySeconds: 20
             periodSeconds: 10
             failureThreshold: 10
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/live
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 15

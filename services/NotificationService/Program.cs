@@ -1,6 +1,7 @@
 using Contracts.Auth;
 using Contracts.Data;
 using Contracts.Observability;
+using Contracts.Security;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using NotificationService.Consumers;
@@ -32,6 +33,8 @@ builder.Services.AddMassTransit(x =>
             h.Username(builder.Configuration["RabbitMq:Username"] ?? "guest");
             h.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
         });
+
+        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
 
         cfg.ConfigureEndpoints(context);
     });
@@ -66,6 +69,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 app.UseCorrelationId();
+app.UseRouting();
+app.UseRequestOriginProtection(builder.Configuration);
 
 app.UseCors("AngularClient");
 

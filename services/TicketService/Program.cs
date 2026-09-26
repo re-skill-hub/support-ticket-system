@@ -1,10 +1,13 @@
 using Contracts.Auth;
 using Contracts.Data;
 using Contracts.Observability;
+using Contracts.Security;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
+using System.Threading.RateLimiting;
 using TicketService.Consumers;
 using TicketService.Data;
 using TicketService.Entities;
@@ -22,6 +25,9 @@ builder.Services
     {
         options.Password.RequiredLength = 8;
         options.User.RequireUniqueEmail = true;
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
@@ -29,6 +35,20 @@ builder.Services
 
 builder.Services.AddSharedJwtBearer(builder.Configuration);
 builder.Services.AddServiceHealthChecks(builder.Configuration);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+});
 
 builder.Services.AddScoped<TokenService>();
 
@@ -45,6 +65,8 @@ builder.Services.AddMassTransit(x =>
             h.Username(builder.Configuration["RabbitMq:Username"] ?? "guest");
             h.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
         });
+
+        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
 
         cfg.ConfigureEndpoints(context);
     });
@@ -68,7 +90,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 await app.Services.MigrateWithRetryAsync<AppDbContext>();
-await app.SeedRolesAndDefaultAgentAsync();
+await app.SeedRolesAsync();
 
 app.UseExceptionHandler();
 
@@ -80,6 +102,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 app.UseCorrelationId();
+app.UseRouting();
+app.UseRateLimiter();
+app.UseRequestOriginProtection(builder.Configuration);
 
 app.UseCors("AngularClient");
 
