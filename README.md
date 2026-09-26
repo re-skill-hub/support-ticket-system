@@ -107,6 +107,6 @@ support-ticket-system/
 
 ## Scope notes
 
-Deliberately left out for this capstone (see the project plan for the full reasoning): no API gateway/BFF — the Angular app calls all three services' ports directly; no JWT refresh-token rotation — a single longer-lived access token is used instead; no Azure deployment — Docker Compose is the deployment target for this submission, with Azure (e.g. Container Apps + Azure SQL + Azure Service Bus) left as a future extension.
+Deliberately left out for this capstone (see the project plan for the full reasoning): no API gateway/BFF — the Angular app calls all three services' ports directly; no JWT refresh-token rotation — a single longer-lived access token is used instead. Docker Compose is the local-dev target described above; a trial deployment to Azure Kubernetes Service via an Azure DevOps pipeline also exists — see `docs/azure-deployment.md` — with SQL Server and RabbitMQ still self-hosted in-cluster rather than replaced by managed Azure SQL/a managed broker, which the same doc calls out as the gap before this could be a real production deployment.
 
 For how this as-built system compares against `docs/requirement/Design Document.docx` specifically — what was implemented to close a gap, what was intentionally kept as an improvement over the doc's generic template, and what was left out of scope — see `docs/requirement/gap-analysis.md`.

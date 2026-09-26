@@ -2,6 +2,11 @@
 
 This runbook deploys the support-ticket system to one low-cost development AKS environment through Azure DevOps. The `k8s/azure-dev` overlay intentionally uses single-replica SQL Server and RabbitMQ for a self-contained trial. Replace those dependencies with Azure SQL and a managed RabbitMQ-compatible broker before production.
 
+**Cost notes — nothing here is free while running, even on a trial subscription:**
+- The client's public `LoadBalancer` (and any static public IP attached to it, including the one provisioned for TLS below) bills hourly for as long as it exists, not just when it's idle "leftover cruft" — delete it with the rest of the resource group when not actively demoing.
+- ACR Basic is ~US$5/month flat, not free.
+- Key Vault (RBAC-mode, Standard tier) is negligible per-operation cost, but not literally free — a trial workload's few secret reads/month cost fractions of a cent, still worth knowing it's not $0.
+
 ## 1. Local prerequisites
 
 Use Azure Cloud Shell or install Azure CLI, kubectl, Helm, Docker, and Git. The commands below use PowerShell syntax. Authenticate and choose the subscription:
