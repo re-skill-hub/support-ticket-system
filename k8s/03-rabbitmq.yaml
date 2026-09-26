@@ -41,6 +41,13 @@ spec:
                 secretKeyRef:
                   name: app-secrets
                   key: RABBITMQ_PASS
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 512Mi
           volumeMounts:
             - name: data
               mountPath: /var/lib/rabbitmq

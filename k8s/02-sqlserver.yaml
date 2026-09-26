@@ -38,6 +38,15 @@ spec:
                 secretKeyRef:
                   name: app-secrets
                   key: MSSQL_SA_PASSWORD
+            - name: MSSQL_MEMORY_LIMIT_MB
+              value: "1024"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1.5Gi
           volumeMounts:
             - name: data
               mountPath: /var/opt/mssql

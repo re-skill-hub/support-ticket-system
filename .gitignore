@@ -2,6 +2,11 @@
 bin/
 obj/
 *.user
+TestResults/
+coverage/
+
+## Logs
+*.log
 
 ## Node / Angular
 node_modules/
