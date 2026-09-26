@@ -113,7 +113,7 @@ Never commit a populated secret manifest or secret values. The pipeline creates 
 
 ## 4. Run the pipeline
 
-Commit and push `azure-pipelines.yml`. The pipeline will:
+Commit and push `azure-pipelines.yaml`. The pipeline will:
 
 1. Build and test the .NET solution.
 2. Test and build the Angular client.
