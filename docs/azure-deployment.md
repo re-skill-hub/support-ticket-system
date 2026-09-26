@@ -126,9 +126,20 @@ Commit and push `azure-pipelines.yaml`. The pipeline will:
 7. Wait for all four Deployments to roll out.
 8. Smoke-test the client endpoint.
 
-Before the first successful pipeline run, `clientEndpoint` must be known because it is used for CORS configuration and the smoke test. Provision a static public IP or DNS name for the client LoadBalancer first, or update the pipeline to separate the initial deployment from the smoke test. Then set `clientEndpoint` to the final URL without a trailing slash, such as `http://20.10.30.40`.
+Before the first successful pipeline run, `clientEndpoint` must be known because it is used for CORS configuration and the smoke test. This is solved by pre-provisioning a static public IP before the first deploy, rather than waiting to discover whatever ephemeral IP a `LoadBalancer` Service happens to get — see the TLS section below. `clientEndpoint` is then set to that IP's `https://<ip>.nip.io` hostname, no trailing slash.
 
-The client is the only public LoadBalancer. Nginx proxies `/api/auth` and `/api/tickets` to TicketService, `/api/responses` to ResponseService, and `/api/metrics` and `/api/notifications` to NotificationService.
+The client is no longer a public `LoadBalancer` itself — it's `ClusterIP`, fronted by an ingress-nginx controller that holds the one public IP for the whole trial environment. Nginx (inside the client image) still proxies `/api/auth` and `/api/tickets` to TicketService, `/api/responses` to ResponseService, and `/api/metrics` and `/api/notifications` to NotificationService; ingress-nginx just adds TLS termination and routing in front of it.
+
+### TLS: ingress-nginx + cert-manager + nip.io
+
+Rather than serving the trial deployment over plain HTTP, a free `<static-ip>.nip.io` hostname gets a real Let's Encrypt certificate via cert-manager's HTTP-01 challenge (`nip.io` resolves any `<ip>.nip.io` name to `<ip>`, so no DNS zone purchase is needed):
+
+1. Provision a Standard-SKU static public IP in the AKS node resource group (`MC_<resourceGroup>_<aksName>_<location>`), tagged so it's clearly for ingress and not confused with AKS's own managed outbound IP.
+2. Install the ingress-nginx controller (`k8s/azure-dev/ingress-nginx/controller.yaml`), with its Service annotated to bind that static IP by resource group + name (`service.beta.kubernetes.io/azure-load-balancer-resource-group`, `service.beta.kubernetes.io/azure-pip-name`).
+3. Install cert-manager (`k8s/azure-dev/cert-manager.yaml`) and a `ClusterIssuer` (`k8s/azure-dev/cluster-issuer.yaml`) — start with the Let's Encrypt **staging** CA (untrusted, generous rate limits) to prove out the HTTP-01 flow, then switch to **production** once a certificate issues successfully.
+4. `k8s/azure-dev/ingress.yaml` (part of the app kustomize overlay) routes the nip.io hostname to the `client` Service and requests a `tls` certificate via the `cert-manager.io/cluster-issuer` annotation.
+
+ingress-nginx and cert-manager are cluster-scoped, one-time installs — apply them manually with `kubectl apply -f`, not through the per-deploy `kubectl apply -k k8s/azure-dev`. See `k8s/azure-dev/README.md` for the exact command order. Until the issuer is switched to `letsencrypt-prod`, the pipeline's `SmokeTest` stage (a plain `curl --fail`) will reject the staging CA's certificate as untrusted — this is expected during initial setup, not a pipeline bug.
 
 ## 5. Verify and clean up
 

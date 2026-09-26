@@ -343,7 +343,7 @@ kind: Service
 metadata:
   name: client
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: client
   ports:
