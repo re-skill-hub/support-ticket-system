@@ -74,7 +74,8 @@ stages:
   - stage: BuildAndPush
     displayName: Build and push images
     dependsOn: Validate
-    condition: succeeded()
+    # Pull requests only run Validate — pushing images and deploying must wait until the PR is merged.
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
       - job: BuildAndPush
         pool:
@@ -109,7 +110,7 @@ stages:
   - stage: DeployDev
     displayName: Deploy development
     dependsOn: BuildAndPush
-    condition: succeeded()
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
       - deployment: DeployDev
         environment: support-ticketing-dev
@@ -172,7 +173,7 @@ stages:
   - stage: SmokeTest
     displayName: Smoke test
     dependsOn: DeployDev
-    condition: succeeded()
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
       - job: SmokeTest
         pool:

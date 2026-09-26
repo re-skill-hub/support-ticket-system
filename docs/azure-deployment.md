@@ -60,7 +60,9 @@ Use workload identity federation when available. Scope the connection to `$RESOU
 
 Grant the service connection identity `AcrPush` on the registry. The AKS kubelet identity separately needs `AcrPull` on the same registry.
 
-Create an environment named `support-ticketing-dev` and authorize the pipeline to use it.
+Create an environment named `support-ticketing-dev` and authorize the pipeline to use it. Then add an approval check so deployments require a human sign-off: open the environment, **Approvals and checks** → **+** → **Approvals**, and add at least one approver. The CLI has no support for this; it must be done in the portal. Without it, any run that reaches the `DeployDev` stage — including the first run after a merge to `main` — deploys to the shared dev cluster with no checkpoint.
+
+Pull requests only run the `Validate` stage (build/test) — `BuildAndPush`, `DeployDev`, and `SmokeTest` are skipped for PR-triggered runs (`Build.Reason == 'PullRequest'`), so opening a PR never pushes images or touches the cluster.
 
 Create a variable group named `support-ticketing-dev` with these non-secret values:
 
