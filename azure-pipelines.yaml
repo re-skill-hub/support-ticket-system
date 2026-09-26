@@ -25,6 +25,7 @@ stages:
     displayName: Validate
     jobs:
       - job: Validate
+        timeoutInMinutes: 15
         pool:
           vmImage: ubuntu-latest
         steps:
@@ -78,6 +79,7 @@ stages:
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
       - job: BuildAndPush
+        timeoutInMinutes: 15
         pool:
           vmImage: ubuntu-latest
         steps:
@@ -114,6 +116,7 @@ stages:
     jobs:
       - deployment: DeployDev
         environment: support-ticketing-dev
+        timeoutInMinutes: 10
         pool:
           vmImage: ubuntu-latest
         strategy:
@@ -176,6 +179,7 @@ stages:
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
       - job: SmokeTest
+        timeoutInMinutes: 5
         pool:
           vmImage: ubuntu-latest
         steps:
