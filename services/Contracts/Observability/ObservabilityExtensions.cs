@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,8 +35,7 @@ public static class ObservabilityExtensions
 
     /// <summary>
     /// Health checks for this service's own SQL Server database and its RabbitMQ
-    /// connection, mapped to GET /health by MapServiceHealthChecks — doubles as the
-    /// Docker healthcheck for the app container itself.
+    /// connection, mapped to GET /health/ready by MapServiceHealthChecks.
     /// </summary>
     public static IServiceCollection AddServiceHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
@@ -58,9 +58,15 @@ public static class ObservabilityExtensions
         return services;
     }
 
+    /// <summary>
+    /// /health/live never touches SQL Server or RabbitMQ, so a transient dependency
+    /// blip fails only readiness (pulling the pod from Service rotation) instead of
+    /// also failing liveness and triggering a pod restart.
+    /// </summary>
     public static WebApplication MapServiceHealthChecks(this WebApplication app)
     {
-        app.MapHealthChecks("/health");
+        app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+        app.MapHealthChecks("/health/ready");
         return app;
     }
 

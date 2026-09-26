@@ -21,7 +21,7 @@ Services communicate only through RabbitMQ events (`TicketCreated`, `TicketStatu
 
 ![Architecture diagram: Angular client calling three independent services, each with its own database, exchanging events through RabbitMQ](docs/architecture-diagram.svg)
 
-Every service exposes a `GET /health` endpoint (checked by its own Docker healthcheck) and logs structured JSON to the console enriched with a `CorrelationId` that flows from the originating HTTP request through every downstream consumer — so a single ticket's event chain is traceable across all three services' logs.
+Every service exposes `GET /health/live` (process-alive only, checked by its own Docker healthcheck) and `GET /health/ready` (SQL Server + RabbitMQ dependency check, used by Kubernetes readiness probes) — split so a transient dependency blip pulls a pod out of rotation instead of restarting it. Every service also logs structured JSON to the console enriched with a `CorrelationId` that flows from the originating HTTP request through every downstream consumer — so a single ticket's event chain is traceable across all three services' logs.
 
 ## Prerequisites
 
