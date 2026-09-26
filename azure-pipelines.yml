@@ -1,0 +1,185 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  - group: support-ticketing-dev
+  - group: support-ticketing-dev-secrets
+  - name: imageTag
+    value: $(Build.SourceVersion)
+  - name: dotnetVersion
+    value: '10.0.x'
+  - name: nodeVersion
+    value: '24.x'
+  - name: overlayPath
+    value: k8s/azure-dev
+
+stages:
+  - stage: Validate
+    displayName: Validate
+    jobs:
+      - job: Validate
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          - task: UseDotNet@2
+            displayName: Install .NET SDK
+            inputs:
+              packageType: sdk
+              version: $(dotnetVersion)
+
+          - task: NodeTool@0
+            displayName: Install Node.js
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: dotnet restore SupportTicketing.slnx
+            displayName: Restore .NET
+
+          - script: dotnet build SupportTicketing.slnx --no-restore --configuration Release
+            displayName: Build .NET
+
+          - script: dotnet test SupportTicketing.slnx --no-build --configuration Release --logger "console;verbosity=normal"
+            displayName: Test .NET
+
+          - script: npm ci
+            displayName: Install Angular dependencies
+            workingDirectory: client
+
+          - script: npm test -- --watch=false
+            displayName: Test Angular
+            workingDirectory: client
+            env:
+              CI: true
+
+          - script: npm run build
+            displayName: Build Angular
+            workingDirectory: client
+
+          - script: |
+              docker build -t ticket-service:$(imageTag) -f services/TicketService/Dockerfile .
+              docker build -t response-service:$(imageTag) -f services/ResponseService/Dockerfile .
+              docker build -t notification-service:$(imageTag) -f services/NotificationService/Dockerfile .
+              docker build -t client:$(imageTag) -f client/Dockerfile .
+            displayName: Build container images
+
+  - stage: BuildAndPush
+    displayName: Build and push images
+    dependsOn: Validate
+    condition: succeeded()
+    jobs:
+      - job: BuildAndPush
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: Build and push images to ACR
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                az acr login --name "$(acrName)"
+                docker build -t "$(acrLoginServer)/ticket-service:$(imageTag)" -f services/TicketService/Dockerfile .
+                docker build -t "$(acrLoginServer)/response-service:$(imageTag)" -f services/ResponseService/Dockerfile .
+                docker build -t "$(acrLoginServer)/notification-service:$(imageTag)" -f services/NotificationService/Dockerfile .
+                docker build -t "$(acrLoginServer)/client:$(imageTag)" -f client/Dockerfile .
+                docker push "$(acrLoginServer)/ticket-service:$(imageTag)"
+                docker push "$(acrLoginServer)/response-service:$(imageTag)"
+                docker push "$(acrLoginServer)/notification-service:$(imageTag)"
+                docker push "$(acrLoginServer)/client:$(imageTag)"
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish Kubernetes overlay
+            inputs:
+              targetPath: $(overlayPath)
+              artifact: kubernetes-overlay
+
+  - stage: DeployDev
+    displayName: Deploy development
+    dependsOn: BuildAndPush
+    condition: succeeded()
+    jobs:
+      - deployment: DeployDev
+        environment: support-ticketing-dev
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: AzureCLI@2
+                  displayName: Deploy to AKS
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      set -euo pipefail
+                      az aks get-credentials --resource-group "$(resourceGroup)" --name "$(aksName)" --overwrite-existing
+                      kubectl apply -f "$(overlayPath)/namespace.yaml"
+                      kubectl create secret generic app-secrets \
+                        --namespace "$(kubernetesNamespace)" \
+                        --from-literal=MSSQL_SA_PASSWORD="$MSSQL_SA_PASSWORD" \
+                        --from-literal=RABBITMQ_USER="$RABBITMQ_USER" \
+                        --from-literal=RABBITMQ_PASS="$RABBITMQ_PASS" \
+                        --from-literal=JWT_SECRET="$JWT_SECRET" \
+                        --dry-run=client -o yaml | kubectl apply -f -
+                      kubectl apply -k "$(overlayPath)"
+                      kubectl -n "$(kubernetesNamespace)" set image deployment/ticket-service ticket-service="$(acrLoginServer)/ticket-service:$(imageTag)"
+                      kubectl -n "$(kubernetesNamespace)" set image deployment/response-service response-service="$(acrLoginServer)/response-service:$(imageTag)"
+                      kubectl -n "$(kubernetesNamespace)" set image deployment/notification-service notification-service="$(acrLoginServer)/notification-service:$(imageTag)"
+                      kubectl -n "$(kubernetesNamespace)" set image deployment/client client="$(acrLoginServer)/client:$(imageTag)"
+                      kubectl -n "$(kubernetesNamespace)" set env deployment/ticket-service Cors__AllowedOrigin="$(clientEndpoint)"
+                      kubectl -n "$(kubernetesNamespace)" set env deployment/response-service Cors__AllowedOrigin="$(clientEndpoint)"
+                      kubectl -n "$(kubernetesNamespace)" set env deployment/notification-service Cors__AllowedOrigin="$(clientEndpoint)"
+                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/ticket-service --timeout=5m
+                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/response-service --timeout=5m
+                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/notification-service --timeout=5m
+                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/client --timeout=5m
+                  env:
+                    MSSQL_SA_PASSWORD: $(MSSQL-SA-PASSWORD)
+                    RABBITMQ_USER: $(RABBITMQ-USER)
+                    RABBITMQ_PASS: $(RABBITMQ-PASS)
+                    JWT_SECRET: $(JWT-SECRET)
+
+                - task: AzureCLI@2
+                  displayName: Capture AKS diagnostics on failure
+                  condition: failed()
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      az aks get-credentials --resource-group "$(resourceGroup)" --name "$(aksName)" --overwrite-existing || true
+                      kubectl -n "$(kubernetesNamespace)" get pods -o wide || true
+                      kubectl -n "$(kubernetesNamespace)" get events --sort-by=.lastTimestamp || true
+                      kubectl -n "$(kubernetesNamespace)" describe pods || true
+
+  - stage: SmokeTest
+    displayName: Smoke test
+    dependsOn: DeployDev
+    condition: succeeded()
+    jobs:
+      - job: SmokeTest
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - bash: |
+              set -euo pipefail
+              test -n "$(clientEndpoint)"
+              curl --fail --retry 5 --retry-delay 5 "$(clientEndpoint)/"
+            displayName: Verify client endpoint
