@@ -33,8 +33,7 @@ export class Nav implements OnInit {
   }
 
   logout(): void {
-    this.authService.logout();
     this.notificationService.resetUnreadCount();
-    this.router.navigateByUrl('/login');
+    this.authService.logout().subscribe(() => this.router.navigateByUrl('/login'));
   }
 }

@@ -27,8 +27,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       toastService.show(message, 'danger');
 
       if (error.status === 401 && authService.isAuthenticated()) {
-        authService.logout();
-        router.navigate(['/login']);
+        authService.logout().subscribe(() => router.navigate(['/login']));
       }
 
       return throwError(() => error);

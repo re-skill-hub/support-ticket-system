@@ -73,9 +73,11 @@ describe('AuthService', () => {
     httpMock.expectOne(`${baseUrl}/login`).flush(authResponse);
     expect(service.isAuthenticated()).toBe(true);
 
-    service.logout();
-    httpMock.expectOne(`${baseUrl}/logout`).flush({});
+    let logoutCompleted = false;
+    service.logout().subscribe(() => (logoutCompleted = true));
+    httpMock.expectOne(`${baseUrl}/logout`).flush(null);
 
+    expect(logoutCompleted).toBe(true);
     expect(service.isAuthenticated()).toBe(false);
     expect(service.currentUser()).toBeNull();
   });
