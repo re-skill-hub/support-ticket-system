@@ -1,13 +1,13 @@
 # Routes the free nip.io hostname (resolves to the static IP bound to the
 # ingress-nginx controller's Service) to the client app, with a cert-manager-issued
-# TLS certificate. Start with letsencrypt-staging; switch to letsencrypt-prod only
-# once staging issues successfully (see k8s/azure-dev/cluster-issuer.yaml).
+# TLS certificate. letsencrypt-staging issued successfully first; now on
+# letsencrypt-prod for a browser-trusted certificate (see k8s/azure-dev/cluster-issuer.yaml).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: client-ingress
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: nginx
   tls:
