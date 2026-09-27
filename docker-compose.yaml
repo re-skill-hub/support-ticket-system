@@ -13,7 +13,7 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
     healthcheck:
@@ -31,8 +31,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
@@ -57,8 +57,12 @@ services:
       RabbitMq__Username: ${RABBITMQ_USER}
       RabbitMq__Password: ${RABBITMQ_PASS}
       Cors__AllowedOrigin: http://localhost:4200
+      ASPNETCORE_ENVIRONMENT: Development
+      LocalAgent__Email: ${LOCAL_AGENT_EMAIL:-}
+      LocalAgent__Password: ${LOCAL_AGENT_PASSWORD:-}
+      LocalAgent__FullName: ${LOCAL_AGENT_FULL_NAME:-Local Support Agent}
     ports:
-      - "5101:8080"
+      - "127.0.0.1:5101:8080"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -87,7 +91,7 @@ services:
       RabbitMq__Password: ${RABBITMQ_PASS}
       Cors__AllowedOrigin: http://localhost:4200
     ports:
-      - "5102:8080"
+      - "127.0.0.1:5102:8080"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -116,7 +120,7 @@ services:
       RabbitMq__Password: ${RABBITMQ_PASS}
       Cors__AllowedOrigin: http://localhost:4200
     ports:
-      - "5103:8080"
+      - "127.0.0.1:5103:8080"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -136,7 +140,7 @@ services:
       context: .
       dockerfile: client/Dockerfile
     ports:
-      - "4200:80"
+      - "127.0.0.1:4200:80"
     depends_on:
       ticket-service:
         condition: service_healthy
