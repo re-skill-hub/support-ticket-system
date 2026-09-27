@@ -28,9 +28,9 @@ export class AuthService {
       .pipe(tap((response) => this.setSession(response)));
   }
 
-  logout(): void {
-    this.http.post(`${this.baseUrl}/logout`, {}).subscribe();
+  logout(): Observable<void> {
     this.currentUser.set(null);
+    return this.http.post<void>(`${this.baseUrl}/logout`, {}).pipe(catchError(() => of(undefined)));
   }
 
   /**

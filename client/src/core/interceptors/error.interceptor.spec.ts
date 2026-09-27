@@ -1,14 +1,14 @@
 import { HttpContext, HttpErrorResponse, HttpRequest } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { firstValueFrom, throwError } from 'rxjs';
+import { firstValueFrom, of, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { ToastService } from '../services/toast.service';
 import { SILENT_AUTH_CHECK, errorInterceptor } from './error.interceptor';
 
 describe('errorInterceptor', () => {
   let toastService: { show: ReturnType<typeof vi.fn> };
-  let authService: { isAuthenticated: () => boolean; logout: () => void };
+  let authService: { isAuthenticated: () => boolean; logout: () => ReturnType<typeof of> };
   let router: { navigate: ReturnType<typeof vi.fn> };
 
   function run(error: HttpErrorResponse, context?: HttpContext) {
@@ -19,7 +19,7 @@ describe('errorInterceptor', () => {
 
   beforeEach(() => {
     toastService = { show: vi.fn() };
-    authService = { isAuthenticated: () => true, logout: vi.fn() as never };
+    authService = { isAuthenticated: () => true, logout: vi.fn().mockReturnValue(of(undefined)) };
     router = { navigate: vi.fn() };
 
     TestBed.configureTestingModule({

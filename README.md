@@ -40,6 +40,7 @@ That's it — the SDKs, Node, and Angular CLI used to build the images are baked
    - `JWT_SECRET` — any long random string (32+ characters); shared by all three services since each validates tokens locally
    - `RABBITMQ_USER` / `RABBITMQ_PASS` — any credentials for the RabbitMQ container
    - `MSSQL_SA_PASSWORD` — must satisfy SQL Server's complexity policy (8+ characters, mixing upper/lower/digit or symbol) or the container will fail to start
+   - `LOCAL_AGENT_EMAIL` / `LOCAL_AGENT_PASSWORD` — set both to provision a local-only support agent for browser E2E; leave both empty to disable it
 
 2. Build and start everything:
 
@@ -64,6 +65,21 @@ Data persists across restarts via named volumes (`sqlserver-data`, `rabbitmq-dat
 New accounts registered through the Angular app become **Customers**. Support-agent accounts must be provisioned through an administrator-controlled process; no reusable support credentials are shipped with the application.
 
 There is no self-service way to create additional agents — that's intentionally out of scope for this capstone.
+
+For local Docker Compose runs only, TicketService creates the optional support agent when both `LOCAL_AGENT_EMAIL` and `LOCAL_AGENT_PASSWORD` are set in `.env`. The bootstrap is guarded by the Development environment and is not enabled for Kubernetes or production.
+
+## Browser end-to-end test
+
+Start the Compose stack as described above, set both local-agent values in `.env`, then run:
+
+```bash
+cd client
+npm ci
+npx playwright install chromium
+npm run e2e
+```
+
+The test registers a customer, creates a ticket, signs in as the local agent to assign, reply, and close it, then verifies the customer notification and updated dashboard metrics. It generates unique test data and waits for event-driven projections to catch up.
 
 ## Using the app
 

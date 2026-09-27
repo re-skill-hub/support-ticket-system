@@ -2,7 +2,11 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.7.
 
-## Development server
+## Full-stack local development
+
+Use the repository root's Docker Compose instructions to run the complete app with the APIs, SQL Server, and RabbitMQ. Starting this Angular project alone does not start the APIs; its `/api` requests need a separately configured development proxy.
+
+## Angular development server
 
 To start a local development server, run:
 
