@@ -142,14 +142,15 @@ stages:
                         --from-literal=RABBITMQ_PASS="$RABBITMQ_PASS" \
                         --from-literal=JWT_SECRET="$JWT_SECRET" \
                         --dry-run=client -o yaml | kubectl apply -f -
+                      sed -i "s#__CLIENT_ENDPOINT__#$(clientEndpoint)#g" "$(overlayPath)/kustomization.yaml"
+                      for d in ticket-service response-service notification-service; do
+                        kubectl -n "$(kubernetesNamespace)" set env "deployment/$d" Cors__AllowedOrigin- 2>/dev/null || true
+                      done
                       kubectl apply -k "$(overlayPath)"
                       kubectl -n "$(kubernetesNamespace)" set image deployment/ticket-service ticket-service="$(acrLoginServer)/ticket-service:$(imageTag)"
                       kubectl -n "$(kubernetesNamespace)" set image deployment/response-service response-service="$(acrLoginServer)/response-service:$(imageTag)"
                       kubectl -n "$(kubernetesNamespace)" set image deployment/notification-service notification-service="$(acrLoginServer)/notification-service:$(imageTag)"
                       kubectl -n "$(kubernetesNamespace)" set image deployment/client client="$(acrLoginServer)/client:$(imageTag)"
-                      kubectl -n "$(kubernetesNamespace)" set env deployment/ticket-service Cors__AllowedOrigin="$(clientEndpoint)"
-                      kubectl -n "$(kubernetesNamespace)" set env deployment/response-service Cors__AllowedOrigin="$(clientEndpoint)"
-                      kubectl -n "$(kubernetesNamespace)" set env deployment/notification-service Cors__AllowedOrigin="$(clientEndpoint)"
                       kubectl -n "$(kubernetesNamespace)" rollout status deployment/ticket-service --timeout=5m
                       kubectl -n "$(kubernetesNamespace)" rollout status deployment/response-service --timeout=5m
                       kubectl -n "$(kubernetesNamespace)" rollout status deployment/notification-service --timeout=5m
