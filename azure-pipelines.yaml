@@ -8,6 +8,19 @@ pr:
     include:
       - main
 
+parameters:
+  - name: services
+    type: object
+    default:
+      - name: ticket-service
+        dockerfile: services/TicketService/Dockerfile
+      - name: response-service
+        dockerfile: services/ResponseService/Dockerfile
+      - name: notification-service
+        dockerfile: services/NotificationService/Dockerfile
+      - name: client
+        dockerfile: client/Dockerfile
+
 variables:
   - group: support-ticketing-dev
   - group: support-ticketing-dev-secrets
@@ -42,6 +55,13 @@ stages:
             inputs:
               versionSpec: $(nodeVersion)
 
+          - task: Cache@2
+            displayName: Cache NuGet packages
+            inputs:
+              key: 'nuget | "$(Agent.OS)" | **/*.csproj'
+              restoreKeys: 'nuget | "$(Agent.OS)"'
+              path: $(NUGET_PACKAGES)
+
           - script: dotnet restore SupportTicketing.slnx
             displayName: Restore .NET
 
@@ -51,9 +71,18 @@ stages:
           - script: dotnet test SupportTicketing.slnx --no-build --configuration Release --logger "console;verbosity=normal"
             displayName: Test .NET
 
+          - task: Cache@2
+            displayName: Cache npm packages
+            inputs:
+              key: 'npm | "$(Agent.OS)" | client/package-lock.json'
+              restoreKeys: 'npm | "$(Agent.OS)"'
+              path: $(Pipeline.Workspace)/.npm
+
           - script: npm ci
             displayName: Install Angular dependencies
             workingDirectory: client
+            env:
+              npm_config_cache: $(Pipeline.Workspace)/.npm
 
           - script: npm test -- --watch=false
             displayName: Test Angular
@@ -65,12 +94,8 @@ stages:
             displayName: Build Angular
             workingDirectory: client
 
-          - script: |
-              docker build -t ticket-service:$(imageTag) -f services/TicketService/Dockerfile .
-              docker build -t response-service:$(imageTag) -f services/ResponseService/Dockerfile .
-              docker build -t notification-service:$(imageTag) -f services/NotificationService/Dockerfile .
-              docker build -t client:$(imageTag) -f client/Dockerfile .
-            displayName: Build container images
+          - script: kubectl kustomize $(overlayPath) > /dev/null
+            displayName: Validate Kubernetes overlay renders
 
   - stage: BuildAndPush
     displayName: Build and push images
@@ -86,22 +111,19 @@ stages:
           - checkout: self
 
           - task: AzureCLI@2
-            displayName: Build and push images to ACR
+            displayName: ACR login
             inputs:
               azureSubscription: $(azureServiceConnection)
               scriptType: bash
               scriptLocation: inlineScript
-              inlineScript: |
-                set -euo pipefail
-                az acr login --name "$(acrName)"
-                docker build -t "$(acrLoginServer)/ticket-service:$(imageTag)" -f services/TicketService/Dockerfile .
-                docker build -t "$(acrLoginServer)/response-service:$(imageTag)" -f services/ResponseService/Dockerfile .
-                docker build -t "$(acrLoginServer)/notification-service:$(imageTag)" -f services/NotificationService/Dockerfile .
-                docker build -t "$(acrLoginServer)/client:$(imageTag)" -f client/Dockerfile .
-                docker push "$(acrLoginServer)/ticket-service:$(imageTag)"
-                docker push "$(acrLoginServer)/response-service:$(imageTag)"
-                docker push "$(acrLoginServer)/notification-service:$(imageTag)"
-                docker push "$(acrLoginServer)/client:$(imageTag)"
+              inlineScript: az acr login --name "$(acrName)"
+
+          ${{ each svc in parameters.services }}:
+            - script: docker build -t "$(acrLoginServer)/${{ svc.name }}:$(imageTag)" -f ${{ svc.dockerfile }} .
+              displayName: 'Build ${{ svc.name }}'
+
+            - script: docker push "$(acrLoginServer)/${{ svc.name }}:$(imageTag)"
+              displayName: 'Push ${{ svc.name }}'
 
           - task: PublishPipelineArtifact@1
             displayName: Publish Kubernetes overlay
@@ -123,8 +145,6 @@ stages:
           runOnce:
             deploy:
               steps:
-                - checkout: self
-
                 - task: AzureCLI@2
                   displayName: Deploy to AKS
                   inputs:
@@ -133,8 +153,15 @@ stages:
                     scriptLocation: inlineScript
                     inlineScript: |
                       set -euo pipefail
+                      overlay="$(Pipeline.Workspace)/kubernetes-overlay"
+                      # az aks get-credentials only populates the cluster server URL + CA cert here;
+                      # the credential it hands out is swapped below for the namespace-scoped
+                      # ci-deployer ServiceAccount token (see k8s/azure-dev/ci-deployer-rbac.yaml),
+                      # since this cluster has no AAD integration and can't scope Azure RBAC instead.
                       az aks get-credentials --resource-group "$(resourceGroup)" --name "$(aksName)" --overwrite-existing
-                      kubectl apply -f "$(overlayPath)/namespace.yaml"
+                      kubectl config set-credentials ci-deployer --token="$K8S_CI_TOKEN"
+                      kubectl config set-context --current --user=ci-deployer --namespace="$(kubernetesNamespace)"
+                      kubectl apply -f "$overlay/namespace.yaml"
                       kubectl create secret generic app-secrets \
                         --namespace "$(kubernetesNamespace)" \
                         --from-literal=MSSQL_SA_PASSWORD="$MSSQL_SA_PASSWORD" \
@@ -142,24 +169,23 @@ stages:
                         --from-literal=RABBITMQ_PASS="$RABBITMQ_PASS" \
                         --from-literal=JWT_SECRET="$JWT_SECRET" \
                         --dry-run=client -o yaml | kubectl apply -f -
-                      sed -i "s#__CLIENT_ENDPOINT__#$(clientEndpoint)#g" "$(overlayPath)/kustomization.yaml"
+                      sed -i "s#__CLIENT_ENDPOINT__#$(clientEndpoint)#g" "$overlay/kustomization.yaml"
                       for d in ticket-service response-service notification-service; do
                         kubectl -n "$(kubernetesNamespace)" set env "deployment/$d" Cors__AllowedOrigin- 2>/dev/null || true
                       done
-                      kubectl apply -k "$(overlayPath)"
-                      kubectl -n "$(kubernetesNamespace)" set image deployment/ticket-service ticket-service="$(acrLoginServer)/ticket-service:$(imageTag)"
-                      kubectl -n "$(kubernetesNamespace)" set image deployment/response-service response-service="$(acrLoginServer)/response-service:$(imageTag)"
-                      kubectl -n "$(kubernetesNamespace)" set image deployment/notification-service notification-service="$(acrLoginServer)/notification-service:$(imageTag)"
-                      kubectl -n "$(kubernetesNamespace)" set image deployment/client client="$(acrLoginServer)/client:$(imageTag)"
-                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/ticket-service --timeout=5m
-                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/response-service --timeout=5m
-                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/notification-service --timeout=5m
-                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/client --timeout=5m
+                      kubectl apply -k "$overlay"
                   env:
                     MSSQL_SA_PASSWORD: $(MSSQL-SA-PASSWORD)
                     RABBITMQ_USER: $(RABBITMQ-USER)
                     RABBITMQ_PASS: $(RABBITMQ-PASS)
                     JWT_SECRET: $(JWT-SECRET)
+                    K8S_CI_TOKEN: $(K8S-CI-TOKEN)
+
+                ${{ each svc in parameters.services }}:
+                  - script: |
+                      kubectl -n "$(kubernetesNamespace)" set image deployment/${{ svc.name }} ${{ svc.name }}="$(acrLoginServer)/${{ svc.name }}:$(imageTag)"
+                      kubectl -n "$(kubernetesNamespace)" rollout status deployment/${{ svc.name }} --timeout=5m
+                    displayName: 'Deploy ${{ svc.name }}'
 
                 - task: AzureCLI@2
                   displayName: Capture AKS diagnostics on failure
@@ -170,9 +196,13 @@ stages:
                     scriptLocation: inlineScript
                     inlineScript: |
                       az aks get-credentials --resource-group "$(resourceGroup)" --name "$(aksName)" --overwrite-existing || true
+                      kubectl config set-credentials ci-deployer --token="$K8S_CI_TOKEN" || true
+                      kubectl config set-context --current --user=ci-deployer --namespace="$(kubernetesNamespace)" || true
                       kubectl -n "$(kubernetesNamespace)" get pods -o wide || true
                       kubectl -n "$(kubernetesNamespace)" get events --sort-by=.lastTimestamp || true
                       kubectl -n "$(kubernetesNamespace)" describe pods || true
+                  env:
+                    K8S_CI_TOKEN: $(K8S-CI-TOKEN)
 
   - stage: SmokeTest
     displayName: Smoke test
