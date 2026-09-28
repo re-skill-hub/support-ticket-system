@@ -61,6 +61,9 @@ services:
       LocalAgent__Email: ${LOCAL_AGENT_EMAIL:-}
       LocalAgent__Password: ${LOCAL_AGENT_PASSWORD:-}
       LocalAgent__FullName: ${LOCAL_AGENT_FULL_NAME:-Local Support Agent}
+      InitialAdmin__Email: ${INITIAL_ADMIN_EMAIL:-}
+      InitialAdmin__Password: ${INITIAL_ADMIN_PASSWORD:-}
+      InitialAdmin__FullName: ${INITIAL_ADMIN_FULL_NAME:-Initial Admin}
     ports:
       - "127.0.0.1:5101:8080"
     depends_on:

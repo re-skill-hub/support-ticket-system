@@ -20,5 +20,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasIndex(t => t.Status);
             entity.HasIndex(t => t.Priority);
         });
+
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(u => u.CreatedAtUtc).HasDefaultValueSql("SYSUTCDATETIME()");
+        });
     }
 }

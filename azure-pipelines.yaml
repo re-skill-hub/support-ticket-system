@@ -168,8 +168,11 @@ stages:
                         --from-literal=RABBITMQ_USER="$RABBITMQ_USER" \
                         --from-literal=RABBITMQ_PASS="$RABBITMQ_PASS" \
                         --from-literal=JWT_SECRET="$JWT_SECRET" \
+                        --from-literal=INITIAL_ADMIN_PASSWORD="$INITIAL_ADMIN_PASSWORD" \
                         --dry-run=client -o yaml | kubectl apply -f -
                       sed -i "s#__CLIENT_ENDPOINT__#$(clientEndpoint)#g" "$overlay/kustomization.yaml"
+                      sed -i "s#__INITIAL_ADMIN_EMAIL__#$(initialAdminEmail)#g" "$overlay/kustomization.yaml"
+                      sed -i "s#__INITIAL_ADMIN_FULL_NAME__#$(initialAdminFullName)#g" "$overlay/kustomization.yaml"
                       for d in ticket-service response-service notification-service; do
                         kubectl -n "$(kubernetesNamespace)" set env "deployment/$d" Cors__AllowedOrigin- 2>/dev/null || true
                       done
@@ -180,6 +183,7 @@ stages:
                     RABBITMQ_PASS: $(RABBITMQ-PASS)
                     JWT_SECRET: $(JWT-SECRET)
                     K8S_CI_TOKEN: $(K8S-CI-TOKEN)
+                    INITIAL_ADMIN_PASSWORD: $(INITIAL-ADMIN-PASSWORD)
 
                 - ${{ each svc in parameters.services }}:
                   - script: |

@@ -1,0 +1,40 @@
+<div class="modal-header">
+  <h5 class="modal-title">New user</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="cancel()"></button>
+</div>
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+    }
+    <div class="mb-3">
+      <label class="form-label" for="new-user-email">Email</label>
+      <input id="new-user-email" type="email" class="form-control" formControlName="email" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="new-user-password">Password</label>
+      <input id="new-user-password" type="password" class="form-control" formControlName="password" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="new-user-fullname">Full name</label>
+      <input id="new-user-fullname" type="text" class="form-control" formControlName="fullName" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="new-user-role">Role</label>
+      <select id="new-user-role" class="form-select" formControlName="role">
+        @for (role of roles; track role) {
+          <option [value]="role">{{ role }}</option>
+        }
+      </select>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+    <button type="submit" class="btn btn-primary" [disabled]="form.invalid || submitting()">
+      @if (submitting()) {
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+      }
+      Create user
+    </button>
+  </div>
+</form>

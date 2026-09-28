@@ -11,4 +11,4 @@ public record LoginRequest(
     [Required, EmailAddress] string Email,
     [Required] string Password);
 
-public record AuthResponse(string Email, string FullName, string Role);
+public record AuthResponse(string Id, string Email, string FullName, string Role);

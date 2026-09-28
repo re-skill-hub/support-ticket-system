@@ -58,7 +58,7 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
     }
 
     [HttpGet]
-    [Authorize(Roles = Roles.SupportAgent)]
+    [Authorize(Roles = Roles.StaffRoles)]
     public async Task<ActionResult<IEnumerable<TicketResponse>>> GetAll([FromQuery] TicketStatus? status, [FromQuery] TicketPriority? priority)
     {
         var query = db.Tickets.AsQueryable();
@@ -86,8 +86,7 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
         }
 
         var isOwner = ticket.CustomerId == User.GetUserId();
-        var isAgent = User.IsInRole(Roles.SupportAgent);
-        if (!isOwner && !isAgent)
+        if (!isOwner && !User.IsStaff())
         {
             return Forbid();
         }
@@ -96,7 +95,7 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
     }
 
     [HttpPatch("{id:guid}/status")]
-    [Authorize(Roles = Roles.SupportAgent)]
+    [Authorize(Roles = Roles.StaffRoles)]
     public async Task<ActionResult<TicketResponse>> UpdateStatus(Guid id, UpdateTicketStatusRequest request)
     {
         var ticket = await db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
@@ -132,7 +131,7 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
     }
 
     [HttpPatch("{id:guid}/assign")]
-    [Authorize(Roles = Roles.SupportAgent)]
+    [Authorize(Roles = Roles.StaffRoles)]
     public async Task<ActionResult<TicketResponse>> AssignToSelf(Guid id)
     {
         var ticket = await db.Tickets.FirstOrDefaultAsync(t => t.Id == id);

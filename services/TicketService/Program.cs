@@ -93,6 +93,8 @@ var app = builder.Build();
 
 await app.Services.MigrateWithRetryAsync<AppDbContext>();
 await app.SeedRolesAsync();
+await app.SeedLocalAgentAsync();
+await app.SeedInitialAdminAsync();
 
 app.UseExceptionHandler();
 

@@ -13,6 +13,8 @@ export class AuthService {
   readonly isAuthenticated = computed(() => this.currentUser() !== null);
   readonly isAgent = computed(() => this.currentUser()?.role === 'SupportAgent');
   readonly isCustomer = computed(() => this.currentUser()?.role === 'Customer');
+  readonly isAdmin = computed(() => this.currentUser()?.role === 'Admin');
+  readonly isStaff = computed(() => this.isAgent() || this.isAdmin());
 
   constructor(private readonly http: HttpClient) {}
 
@@ -54,6 +56,7 @@ export class AuthService {
 
   private setSession(response: AuthResponse): void {
     this.currentUser.set({
+      id: response.id,
       email: response.email,
       fullName: response.fullName,
       role: response.role,

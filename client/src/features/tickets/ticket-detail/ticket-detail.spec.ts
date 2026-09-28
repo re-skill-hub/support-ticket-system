@@ -59,7 +59,10 @@ describe('TicketDetail', () => {
         provideHttpClientTesting(),
         { provide: TicketService, useValue: ticketService },
         { provide: ResponseService, useValue: responseService },
-        { provide: AuthService, useValue: { isAgent: () => false, isCustomer: () => true, currentUser: () => null } },
+        {
+          provide: AuthService,
+          useValue: { isAgent: () => false, isStaff: () => false, isCustomer: () => true, currentUser: () => null },
+        },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 't1' } } },

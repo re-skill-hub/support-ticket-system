@@ -17,6 +17,8 @@ configMapGenerator:
       - CORS_ALLOWED_ORIGIN=__CLIENT_ENDPOINT__
       - SQLSERVER_HOST=sqlserver
       - RABBITMQ_HOST=rabbitmq
+      - INITIAL_ADMIN_EMAIL=__INITIAL_ADMIN_EMAIL__
+      - INITIAL_ADMIN_FULL_NAME=__INITIAL_ADMIN_FULL_NAME__
 
 generatorOptions:
   disableNameSuffixHash: true

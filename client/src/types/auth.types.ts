@@ -1,6 +1,7 @@
-export type Role = 'Customer' | 'SupportAgent';
+export type Role = 'Customer' | 'SupportAgent' | 'Admin';
 
 export interface AuthUser {
+  id: string;
   email: string;
   fullName: string;
   role: Role;
@@ -18,6 +19,7 @@ export interface LoginRequest {
 }
 
 export interface AuthResponse {
+  id: string;
   email: string;
   fullName: string;
   role: Role;

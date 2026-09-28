@@ -11,7 +11,7 @@ namespace TicketService.Tests;
 public class DbSeederTests
 {
     [Fact]
-    public async Task SeedRolesAsync_CreatesConfiguredDevelopmentAgentIdempotently()
+    public async Task SeedLocalAgentAsync_CreatesConfiguredDevelopmentAgentIdempotently()
     {
         await using var app = CreateApp("Development", new Dictionary<string, string?>
         {
@@ -20,7 +20,8 @@ public class DbSeederTests
         });
 
         await app.SeedRolesAsync();
-        await app.SeedRolesAsync();
+        await app.SeedLocalAgentAsync();
+        await app.SeedLocalAgentAsync();
 
         using var scope = app.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -31,7 +32,7 @@ public class DbSeederTests
     }
 
     [Fact]
-    public async Task SeedRolesAsync_DoesNotCreateAgentOutsideDevelopment()
+    public async Task SeedLocalAgentAsync_DoesNotCreateAgentOutsideDevelopment()
     {
         await using var app = CreateApp("Production", new Dictionary<string, string?>
         {
@@ -40,10 +41,56 @@ public class DbSeederTests
         });
 
         await app.SeedRolesAsync();
+        await app.SeedLocalAgentAsync();
 
         using var scope = app.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         Assert.Null(await userManager.FindByEmailAsync("agent@example.test"));
+    }
+
+    [Fact]
+    public async Task SeedInitialAdminAsync_CreatesConfiguredAdminIdempotently()
+    {
+        await using var app = CreateApp("Production", new Dictionary<string, string?>
+        {
+            ["InitialAdmin:Email"] = "admin@example.test",
+            ["InitialAdmin:Password"] = "Initial-Admin-123!",
+        });
+
+        await app.SeedRolesAsync();
+        await app.SeedInitialAdminAsync();
+        await app.SeedInitialAdminAsync();
+
+        using var scope = app.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var admin = await userManager.FindByEmailAsync("admin@example.test");
+
+        Assert.NotNull(admin);
+        Assert.True(await userManager.IsInRoleAsync(admin, "Admin"));
+    }
+
+    [Fact]
+    public async Task SeedInitialAdminAsync_SkipsSilentlyWhenNotConfigured()
+    {
+        await using var app = CreateApp("Production", new Dictionary<string, string?>());
+
+        await app.SeedRolesAsync();
+        await app.SeedInitialAdminAsync();
+
+        using var scope = app.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        Assert.Null(await userManager.FindByEmailAsync("admin@example.test"));
+    }
+
+    [Fact]
+    public async Task SeedInitialAdminAsync_ThrowsWhenOnlyOneValueConfigured()
+    {
+        await using var app = CreateApp("Production", new Dictionary<string, string?>
+        {
+            ["InitialAdmin:Email"] = "admin@example.test",
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => app.SeedInitialAdminAsync());
     }
 
     private static WebApplication CreateApp(string environment, Dictionary<string, string?> settings)

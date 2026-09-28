@@ -18,7 +18,7 @@
           <app-priority-chip [priority]="t.priority" />
           <span class="category text-secondary small">{{ t.category }}</span>
 
-          @if (authService.isAgent()) {
+          @if (authService.isStaff()) {
             <select class="form-select form-select-sm status-select" [formControl]="statusControl" aria-label="Status">
               @for (status of statuses; track status) {
                 <option [value]="status">{{ status }}</option>
