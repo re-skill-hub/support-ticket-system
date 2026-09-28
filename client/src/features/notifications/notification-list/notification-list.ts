@@ -1,8 +1,12 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EMPTY, catchError, interval, startWith, switchMap } from 'rxjs';
 import { NotificationService } from '../../../core/services/notification.service';
 import { Notification } from '../../../types/notification.types';
+
+const REFRESH_INTERVAL_MS = 10_000;
 
 @Component({
   selector: 'app-notification-list',
@@ -12,17 +16,28 @@ import { Notification } from '../../../types/notification.types';
 })
 export class NotificationList implements OnInit {
   private readonly notificationService = inject(NotificationService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly loading = signal(true);
   readonly notifications = signal<Notification[]>([]);
 
   ngOnInit(): void {
-    this.notificationService.getMine().subscribe({
-      next: (notifications) => {
+    interval(REFRESH_INTERVAL_MS)
+      .pipe(
+        startWith(0),
+        takeUntilDestroyed(this.destroyRef),
+        switchMap(() =>
+          this.notificationService.getMine().pipe(
+            catchError(() => {
+              this.loading.set(false);
+              return EMPTY;
+            }),
+          ),
+        ),
+      )
+      .subscribe((notifications) => {
         this.notifications.set(notifications);
         this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
     });
   }
 

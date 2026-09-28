@@ -75,9 +75,32 @@ test('customer and support agent complete a ticket lifecycle', async ({ page }) 
   expect(createdResponse.authorRole).toBe('SupportAgent');
   await expect(page.getByText(agentReply)).toBeVisible();
 
+  const ticketMetricUrl = `/api/metrics/tickets/${ticketId}`;
+  await expect
+    .poll(async () => {
+      const response = await page.request.get(ticketMetricUrl);
+      if (!response.ok()) {
+        return false;
+      }
+      const metric = await response.json();
+      return metric.status === 'InProgress' && metric.firstResponseAtUtc !== null;
+    }, { timeout: 30_000 })
+    .toBe(true);
+
   await page.getByLabel('Status').selectOption('Closed');
   await page.getByRole('button', { name: 'Close ticket' }).click();
   await expect(page.locator('.summary-card app-status-chip').getByText('Closed')).toBeVisible();
+
+  await expect
+    .poll(async () => {
+      const response = await page.request.get(ticketMetricUrl);
+      if (!response.ok()) {
+        return false;
+      }
+      const metric = await response.json();
+      return metric.status === 'Closed' && metric.closedAtUtc !== null;
+    }, { timeout: 30_000 })
+    .toBe(true);
 
   await page.goto('/dashboard');
   await expect
@@ -98,21 +121,25 @@ test('customer and support agent complete a ticket lifecycle', async ({ page }) 
   await page.goto('/notifications');
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
 
-  const notificationForTicket = page
-    .locator('.list-group-item')
-    .filter({ hasText: 'A support agent replied to your ticket.' })
-    .filter({ has: page.locator(`a[href="/tickets/${ticketId}"]`) });
+  const notificationForTicket = page.locator('.list-group-item').filter({ has: page.locator(`a[href="/tickets/${ticketId}"]`) });
+  const expectedNotifications = [
+    'A support agent replied to your ticket.',
+    'Your ticket status changed to InProgress.',
+    'Your ticket status changed to Closed.',
+  ];
   await expect
     .poll(async () => {
       const response = await page.request.get('/api/notifications/mine');
       expect(response.status()).toBe(200);
       const notifications = await response.json();
-      return notifications.filter((notification: { ticketId: string }) => notification.ticketId === ticketId).length;
+      const ticketNotifications = notifications.filter((notification: { ticketId: string }) => notification.ticketId === ticketId);
+      return expectedNotifications.every((message) => ticketNotifications.some((notification: { message: string }) => notification.message === message));
     }, { timeout: 30_000 })
-    .toBeGreaterThan(0);
+    .toBe(true);
 
   await page.reload();
-  await notificationForTicket.getByRole('link', { name: 'View ticket' }).click();
+  await expect(notificationForTicket).toHaveCount(3, { timeout: 15_000 });
+  await notificationForTicket.first().getByRole('link', { name: 'View ticket' }).click();
   await expect(page.getByText(agentReply)).toBeVisible();
   await expect(page.locator('.summary-card app-status-chip').getByText('Closed')).toBeVisible();
 });

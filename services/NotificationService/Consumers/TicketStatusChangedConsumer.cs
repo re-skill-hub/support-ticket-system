@@ -18,7 +18,7 @@ public class TicketStatusChangedConsumer(AppDbContext db, ILogger<TicketStatusCh
         if (metric is null)
         {
             logger.LogWarning("Received TicketStatusChanged for unknown TicketMetric {TicketId}.", message.TicketId);
-            return;
+            throw new InvalidOperationException($"TicketMetric {message.TicketId} has not been projected yet.");
         }
 
         metric.Status = message.NewStatus;

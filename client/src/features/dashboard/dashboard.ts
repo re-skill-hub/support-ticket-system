@@ -1,5 +1,7 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EMPTY, catchError, interval, startWith, switchMap } from 'rxjs';
 import { MetricsService } from '../../core/services/metrics.service';
 import { MetricsSummary } from '../../types/metrics.types';
 
@@ -20,6 +22,7 @@ interface TimeBar {
 }
 
 const DONUT_RADIUS = 15.9155;
+const REFRESH_INTERVAL_MS = 10_000;
 
 @Component({
   selector: 'app-dashboard',
@@ -29,6 +32,7 @@ const DONUT_RADIUS = 15.9155;
 })
 export class Dashboard implements OnInit {
   private readonly metricsService = inject(MetricsService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly loading = signal(true);
   readonly summary = signal<MetricsSummary | null>(null);
@@ -85,12 +89,22 @@ export class Dashboard implements OnInit {
   });
 
   ngOnInit(): void {
-    this.metricsService.getSummary().subscribe({
-      next: (summary) => {
+    interval(REFRESH_INTERVAL_MS)
+      .pipe(
+        startWith(0),
+        takeUntilDestroyed(this.destroyRef),
+        switchMap(() =>
+          this.metricsService.getSummary().pipe(
+            catchError(() => {
+              this.loading.set(false);
+              return EMPTY;
+            }),
+          ),
+        ),
+      )
+      .subscribe((summary) => {
         this.summary.set(summary);
         this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
     });
   }
 }
