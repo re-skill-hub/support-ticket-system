@@ -2,7 +2,7 @@
 
 This records every place the running system diverges from `Design Document.docx`, and how each divergence was resolved. It extends — rather than repeats — the "Scope notes" section at the bottom of the root `README.md`, which lists deliberate omissions from the as-built system's own point of view; this document instead starts from the design doc's requirements and works forward.
 
-Snapshot date: 2026-09-24.
+Snapshot date: 2026-09-28.
 
 ## Resolution categories
 
@@ -16,7 +16,7 @@ Snapshot date: 2026-09-24.
 |---|---|---|
 | Single ASP.NET Core Web API, single SQL Server database, Repository pattern over EF Core | Three independently deployable microservices (TicketService, ResponseService, NotificationService), one database per service, controllers use EF Core directly with no repository layer | **Kept as an improvement.** The doc's own architecture section calls for "Microservices"; database-per-service and direct EF Core usage are the more idiomatic way to realize that, and a repository layer over EF Core (already a repository abstraction) would add indirection without behavioral benefit. |
 | `PUT /tickets/{id}/comment` — comments as a sub-resource of the ticket, no event bus | Comments/replies live in a separate ResponseService; TicketService, ResponseService, and NotificationService communicate only via RabbitMQ events (`TicketCreated`, `TicketStatusChanged`, `ResponseAdded`), with no synchronous inter-service calls | **Kept as an improvement.** This is the direct consequence of the microservices decision above — a shared "comment" endpoint on TicketController isn't possible once responses own their own service and database; the event bus is what keeps the two consistent without a distributed transaction. |
-| Azure DevOps pipeline → Azure Kubernetes Service (AKS) | No Azure subscription/DevOps org exists for this capstone | **Implemented, adapted.** See "CI/CD and deployment" below. |
+| Azure DevOps pipeline → Azure Kubernetes Service (AKS) | A real Azure DevOps org/pipeline deploys to a real AKS cluster | **Implemented.** See "CI/CD and deployment" below. |
 
 ## Frontend framework and tooling
 
@@ -42,8 +42,8 @@ Snapshot date: 2026-09-24.
 
 | Design doc requirement | Current state | Resolution |
 |---|---|---|
-| Azure DevOps build pipeline (restore/build/test/publish) | None existed | **Implemented, adapted.** `.github/workflows/ci.yaml` (GitHub Actions, since there's no Azure DevOps org for this capstone) — functionally the same stages: restore/build/test the .NET solution, then `npm ci`/test/build the Angular client, then a `docker build` per service and for the client as the "publish artifacts" equivalent, validating that every Dockerfile still builds. |
-| Deployment to Azure Kubernetes Service (AKS) | None existed; README already deferred Azure/AKS as a stated future extension | **Implemented, adapted.** `k8s/` holds Deployment + Service manifests for all four app components plus `sqlserver`/`rabbitmq` (self-contained for a local demo), built and validated against **Docker Desktop's built-in Kubernetes** rather than real AKS — same manifest shape (ordinary Deployments/Services, no Docker-Desktop-specific fields), just a single local node instead of a managed multi-node cluster, since no Azure subscription is available for this capstone. `k8s/README.md` documents the local-vs-AKS scope and what would change to actually target AKS (registry push, managed SQL/broker, ingress). |
+| Azure DevOps build pipeline (restore/build/test/publish) | A real Azure DevOps org/project runs `azure-pipelines.yaml` on every push/PR to `feature/azure-deploy` and `main` | **Implemented.** `Validate` stage: restore/build/test the .NET solution, `npm ci`/test/build the Angular client, plus a `kubectl kustomize` render check of the Kubernetes overlay; runs on PRs too, gating merges. `BuildAndPush` builds and pushes one image per entry in the `services` pipeline parameter to Azure Container Registry, tagged with the commit SHA. See `docs/ci-cd-pipeline.md` for the full stage-by-stage breakdown. (The redundant `.github/workflows/ci.yaml` added during local-only development was removed once this real pipeline existed.) |
+| Deployment to Azure Kubernetes Service (AKS) | A real AKS cluster (`aks-support-ticket-dev-01`) runs the `support-ticketing-dev` namespace, deployed by the `DeployDev` stage | **Implemented.** `k8s/azure-dev` is a kustomize overlay of the base `k8s/` manifests, applied against real AKS rather than Docker Desktop's local Kubernetes. The pipeline authenticates as a namespace-scoped `ci-deployer` ServiceAccount token (`k8s/azure-dev/ci-deployer-rbac.yaml`) instead of the cluster-admin credential AKS otherwise hands out; secrets are Key-Vault-backed; TLS is terminated by ingress-nginx + cert-manager against a Let's Encrypt certificate; AKS Container Insights streams logs/metrics to Log Analytics. `k8s/README.md` still documents the original Docker-Desktop-only manifests these build on; `docs/azure-deployment.md` and `docs/ci-cd-pipeline.md` document the AKS deployment itself. |
 
 ## Backend test coverage
 
@@ -65,6 +65,8 @@ Snapshot date: 2026-09-24.
 
 ## See also
 
-- Root `README.md`'s "Scope notes" section — deliberate omissions from the as-built system's own perspective (no API gateway/BFF, no JWT refresh-token rotation, Docker Compose as the primary deployment target).
+- Root `README.md`'s "Scope notes" section — deliberate omissions from the as-built system's own perspective (no API gateway/BFF, no JWT refresh-token rotation, Docker Compose as the primary local-dev target).
 - `k8s/README.md` — Docker Desktop vs. AKS scope note for the Kubernetes manifests specifically.
+- `docs/azure-deployment.md` — runbook for standing up the real Azure/AKS trial deployment.
+- `docs/ci-cd-pipeline.md` — the Azure Pipelines architecture and RBAC deploy identity in detail.
 - `docs/postman/README.md` — how to run the Postman collection against a live stack.

@@ -1,0 +1,80 @@
+# Namespace-scoped identity for the Azure Pipelines deploy step, replacing the
+# cluster-admin credential `az aks get-credentials` otherwise hands out (this cluster
+# has no AAD integration, so Azure RBAC for Kubernetes Authorization isn't available —
+# the "clusterUser" credential is a static, cluster-admin-bound client certificate).
+# The pipeline authenticates as this ServiceAccount's token instead, which can only
+# touch objects inside support-ticketing-dev and can only read/patch that one
+# Namespace object by name (never create/delete a namespace).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-deployer
+  namespace: support-ticketing-dev
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ci-deployer-token
+  namespace: support-ticketing-dev
+  annotations:
+    kubernetes.io/service-account.name: ci-deployer
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ci-deployer
+  namespace: support-ticketing-dev
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-deployer
+  namespace: support-ticketing-dev
+subjects:
+  - kind: ServiceAccount
+    name: ci-deployer
+    namespace: support-ticketing-dev
+roleRef:
+  kind: Role
+  name: ci-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+# kubectl apply -f namespace.yaml still needs to GET/PATCH that one cluster-scoped
+# Namespace object; this ClusterRole is restricted to that exact name only, so the
+# token still can't list, create, or delete any other namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ci-deployer-namespace-support-ticketing-dev
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    resourceNames: ["support-ticketing-dev"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ci-deployer-namespace-support-ticketing-dev
+subjects:
+  - kind: ServiceAccount
+    name: ci-deployer
+    namespace: support-ticketing-dev
+roleRef:
+  kind: ClusterRole
+  name: ci-deployer-namespace-support-ticketing-dev
+  apiGroup: rbac.authorization.k8s.io

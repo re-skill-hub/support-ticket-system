@@ -12,6 +12,10 @@ The client nginx container proxies same-origin API paths to the internal service
 
 The three API Services are `ClusterIP`. The client is also `ClusterIP` — the only public entry point is the ingress-nginx controller's `LoadBalancer` Service, bound to a pre-provisioned static IP (`pip-support-ticket-ingress` in the AKS node resource group) so the hostname is known before the first deploy.
 
+## Deploy identity (`ci-deployer-rbac.yaml`)
+
+`ci-deployer-rbac.yaml` is a manual, one-time, admin-run bootstrap file — like `ingress-nginx`/`cert-manager` below, it's deliberately **not** part of this kustomization and never applied by the pipeline. It creates the namespace-scoped `ci-deployer` ServiceAccount/Role/RoleBinding (plus a name-restricted ClusterRole just for the `support-ticketing-dev` Namespace object) that the Azure DevOps pipeline authenticates as instead of the cluster-admin credential `az aks get-credentials` otherwise hands out. Since the pipeline runs with that reduced-privilege token, it has no RBAC-self-management permission and could not apply this file itself even if it were part of the overlay. See `docs/ci-cd-pipeline.md` for what it can and can't do, and `docs/azure-deployment.md` for how to apply it and store its token as a secret.
+
 ## TLS (ingress-nginx + cert-manager + nip.io)
 
 `ingress-nginx/controller.yaml` and `cert-manager.yaml` are one-time, cluster-scoped installs — apply them manually with `kubectl apply -f`, not through this kustomize overlay (they're cluster infrastructure, not part of a per-namespace app deploy). `cluster-issuer.yaml` is also applied manually, once, after cert-manager's webhook is `Ready` — it's cluster-scoped so kustomize's namespace transformer would otherwise mis-tag it.

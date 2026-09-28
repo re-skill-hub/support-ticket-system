@@ -50,10 +50,12 @@ public static class ObservabilityExtensions
             Uri = new Uri($"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:5672"),
         };
 
+        services.AddSingleton<IConnection>(_ => rabbitConnectionFactory.CreateConnectionAsync().GetAwaiter().GetResult());
+
         services
             .AddHealthChecks()
             .AddSqlServer(connectionString, name: "sqlserver")
-            .AddRabbitMQ(_ => rabbitConnectionFactory.CreateConnectionAsync().GetAwaiter().GetResult(), name: "rabbitmq");
+            .AddRabbitMQ(name: "rabbitmq");
 
         return services;
     }

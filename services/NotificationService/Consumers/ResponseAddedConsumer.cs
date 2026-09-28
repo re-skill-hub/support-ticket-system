@@ -32,7 +32,7 @@ public class ResponseAddedConsumer(AppDbContext db, ILogger<ResponseAddedConsume
         if (metric is null)
         {
             logger.LogWarning("Received ResponseAdded for unknown TicketMetric {TicketId}.", message.TicketId);
-            return;
+            throw new InvalidOperationException($"TicketMetric {message.TicketId} has not been projected yet.");
         }
 
         if (metric.FirstResponseAtUtc is null)

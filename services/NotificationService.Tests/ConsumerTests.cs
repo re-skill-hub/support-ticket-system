@@ -112,13 +112,13 @@ public class ConsumerTests
     }
 
     [Fact]
-    public async Task ResponseAddedConsumer_UnknownTicketMetric_DoesNotThrow()
+    public async Task ResponseAddedConsumer_UnknownTicketMetric_ThrowsForRetry()
     {
         using var db = CreateDbContext();
         var consumer = new ResponseAddedConsumer(db, new Mock<ILogger<ResponseAddedConsumer>>().Object);
         var message = new ResponseAdded(Guid.NewGuid(), Guid.NewGuid(), "agent-1", Roles.SupportAgent, "We're on it.", DateTime.UtcNow);
 
-        await consumer.Consume(CreateConsumeContext(message).Object);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => consumer.Consume(CreateConsumeContext(message).Object));
 
         Assert.Empty(db.Notifications);
     }
@@ -172,13 +172,13 @@ public class ConsumerTests
     }
 
     [Fact]
-    public async Task TicketStatusChangedConsumer_UnknownTicketMetric_DoesNotThrow()
+    public async Task TicketStatusChangedConsumer_UnknownTicketMetric_ThrowsForRetry()
     {
         using var db = CreateDbContext();
         var consumer = new TicketStatusChangedConsumer(db, new Mock<ILogger<TicketStatusChangedConsumer>>().Object);
         var message = new TicketStatusChanged(Guid.NewGuid(), "customer-1", "Open", "InProgress", DateTime.UtcNow);
 
-        await consumer.Consume(CreateConsumeContext(message).Object);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => consumer.Consume(CreateConsumeContext(message).Object));
 
         Assert.Empty(db.Notifications);
     }
