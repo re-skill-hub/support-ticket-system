@@ -67,6 +67,8 @@ Grant the service connection identity `AcrPush` on the registry. The AKS kubelet
 
 Create an environment named `support-ticketing-dev` and authorize the pipeline to use it. Then add an approval check so deployments require a human sign-off: open the environment, **Approvals and checks** → **+** → **Approvals**, and add at least one approver. The CLI has no support for this; it must be done in the portal. Without it, any run that reaches the `DeployDev` stage — including the first run after a merge to `main` — deploys to the shared dev cluster with no checkpoint.
 
+Also register the AKS namespace as a **Kubernetes resource** on the environment (Environments → `support-ticketing-dev` → Resources → Kubernetes, pointing at the `support-ticketing-dev` namespace in the cluster) — this is what makes the portal show live pod/rollout status for `DeployDev` runs, separately from the approval check above.
+
 Pull requests only run the `Validate` stage (build/test) — `BuildAndPush`, `DeployDev`, and `SmokeTest` are skipped for PR-triggered runs (`Build.Reason == 'PullRequest'`), so opening a PR never pushes images or touches the cluster.
 
 Create a variable group named `support-ticketing-dev` with these non-secret values:
@@ -95,16 +97,19 @@ az keyvault create \
 
 Grant the service connection's identity (the managed identity or app registration behind `sc-support-ticket-dev`) the `Key Vault Secrets User` role scoped to the vault, so the pipeline can read secrets at runtime. Grant your own account `Key Vault Secrets Officer` on the vault so you can populate secret values (RBAC-mode vaults grant no implicit access, even to the creator).
 
-Populate the four secrets (Key Vault secret names cannot contain underscores, so use hyphens):
+Populate the five secrets (Key Vault secret names cannot contain underscores, so use hyphens):
 
 ```bash
 az keyvault secret set --vault-name <vault-name> --name MSSQL-SA-PASSWORD --value "<value>"
 az keyvault secret set --vault-name <vault-name> --name RABBITMQ-USER --value "<value>"
 az keyvault secret set --vault-name <vault-name> --name RABBITMQ-PASS --value "<value>"
 az keyvault secret set --vault-name <vault-name> --name JWT-SECRET --value "<value>"
+az keyvault secret set --vault-name <vault-name> --name K8S-CI-TOKEN --value "<ci-deployer ServiceAccount token>"
 ```
 
-Create a second variable group named `support-ticketing-dev-secrets` of type `AzureKeyVault`, linked to the vault via `sc-support-ticket-dev`, listing the four secret names above. The Azure DevOps CLI does not support creating Key-Vault-linked variable groups; use the REST API instead:
+`K8S-CI-TOKEN` is the least-privilege deploy credential the pipeline authenticates as instead of the cluster-admin credential `az aks get-credentials` otherwise hands out — see "Deploy identity" below for how to create it and `docs/ci-cd-pipeline.md` for how the pipeline uses it.
+
+Create a second variable group named `support-ticketing-dev-secrets` of type `AzureKeyVault`, linked to the vault via `sc-support-ticket-dev`, listing the five secret names above. The Azure DevOps CLI does not support creating Key-Vault-linked variable groups; use the REST API instead:
 
 ```bash
 az rest --method post \
@@ -118,18 +123,29 @@ where `variablegroup.json` sets `"type": "AzureKeyVault"` and a `providerData` o
 
 Never commit a populated secret manifest or secret values. The pipeline creates the `app-secrets` Kubernetes Secret from the Key-Vault-sourced pipeline variables at deploy time.
 
+### Deploy identity: `ci-deployer`, not cluster-admin
+
+This cluster has no AAD integration, so `az aks get-credentials` hands out a static, cluster-admin-bound client certificate. Rather than let the pipeline deploy with that, apply the least-privilege RBAC bootstrap once, manually, with your own cluster-admin access:
+
+```powershell
+kubectl apply -f k8s/azure-dev/ci-deployer-rbac.yaml
+$K8S_CI_TOKEN = kubectl -n support-ticketing-dev get secret ci-deployer-token -o jsonpath="{.data.token}" | base64 -d
+```
+
+Store that token as the `K8S-CI-TOKEN` Key Vault secret above. Full detail on what this ServiceAccount can and can't do is in `docs/ci-cd-pipeline.md`.
+
+### Container Insights (optional but recommended)
+
+```bash
+az provider register --namespace microsoft.insights   # one-time per subscription; async, poll registrationState
+az monitor log-analytics workspace create --resource-group $RESOURCE_GROUP --workspace-name <workspace-name>
+az aks enable-addons --resource-group $RESOURCE_GROUP --name $AKS_NAME \
+  --addons monitoring --workspace-resource-id <workspace-resource-id>
+```
+
 ## 4. Run the pipeline
 
-Commit and push `azure-pipelines.yaml`. The pipeline will:
-
-1. Build and test the .NET solution.
-2. Test and build the Angular client.
-3. Build and push four images to ACR using the commit SHA.
-4. Create the development namespace and Kubernetes Secret.
-5. Apply the trial overlay.
-6. Set the image tags and exact CORS origin.
-7. Wait for all four Deployments to roll out.
-8. Smoke-test the client endpoint.
+Commit and push `azure-pipelines.yaml`. It has four stages — **Validate** (build/test everything, including a `kubectl kustomize` render check of the overlay), **BuildAndPush**, **DeployDev**, **SmokeTest** — with `BuildAndPush`/`DeployDev`/`SmokeTest` skipped on pull-request-triggered runs. Full stage-by-stage detail, the per-service templating, and the deploy identity swap are documented in `docs/ci-cd-pipeline.md`.
 
 Before the first successful pipeline run, `clientEndpoint` must be known because it is used for CORS configuration and the smoke test. This is solved by pre-provisioning a static public IP before the first deploy, rather than waiting to discover whatever ephemeral IP a `LoadBalancer` Service happens to get — see the TLS section below. `clientEndpoint` is then set to that IP's `https://<ip>.nip.io` hostname, no trailing slash.
 
