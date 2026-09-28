@@ -118,7 +118,7 @@ stages:
               scriptLocation: inlineScript
               inlineScript: az acr login --name "$(acrName)"
 
-          ${{ each svc in parameters.services }}:
+          - ${{ each svc in parameters.services }}:
             - script: docker build -t "$(acrLoginServer)/${{ svc.name }}:$(imageTag)" -f ${{ svc.dockerfile }} .
               displayName: 'Build ${{ svc.name }}'
 
@@ -181,7 +181,7 @@ stages:
                     JWT_SECRET: $(JWT-SECRET)
                     K8S_CI_TOKEN: $(K8S-CI-TOKEN)
 
-                ${{ each svc in parameters.services }}:
+                - ${{ each svc in parameters.services }}:
                   - script: |
                       kubectl -n "$(kubernetesNamespace)" set image deployment/${{ svc.name }} ${{ svc.name }}="$(acrLoginServer)/${{ svc.name }}:$(imageTag)"
                       kubectl -n "$(kubernetesNamespace)" rollout status deployment/${{ svc.name }} --timeout=5m
