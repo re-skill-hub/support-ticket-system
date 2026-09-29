@@ -32,6 +32,8 @@ variables:
     value: '24.x'
   - name: overlayPath
     value: k8s/azure-dev
+  - name: NUGET_PACKAGES
+    value: $(Pipeline.Workspace)/.nuget/packages
 
 stages:
   - stage: Validate
