@@ -9,23 +9,64 @@
     }
     <div class="mb-3">
       <label class="form-label" for="new-user-email">Email</label>
-      <input id="new-user-email" type="email" class="form-control" formControlName="email" />
+      <input
+        id="new-user-email"
+        type="email"
+        class="form-control"
+        formControlName="email"
+        [class.is-invalid]="form.controls.email.invalid && form.controls.email.touched"
+      />
+      @if (form.controls.email.invalid && form.controls.email.touched) {
+        <div class="invalid-feedback">Enter a valid email address.</div>
+      }
     </div>
     <div class="mb-3">
       <label class="form-label" for="new-user-password">Password</label>
-      <input id="new-user-password" type="password" class="form-control" formControlName="password" />
+      <input
+        id="new-user-password"
+        type="password"
+        class="form-control"
+        formControlName="password"
+        [class.is-invalid]="form.controls.password.invalid && form.controls.password.touched"
+      />
+      @if (form.controls.password.invalid && form.controls.password.touched) {
+        <div class="invalid-feedback">Password must be at least 8 characters.</div>
+      }
     </div>
     <div class="mb-3">
       <label class="form-label" for="new-user-fullname">Full name</label>
-      <input id="new-user-fullname" type="text" class="form-control" formControlName="fullName" />
+      <input
+        id="new-user-fullname"
+        type="text"
+        class="form-control"
+        formControlName="fullName"
+        [class.is-invalid]="form.controls.fullName.invalid && form.controls.fullName.touched"
+      />
+      @if (form.controls.fullName.invalid && form.controls.fullName.touched) {
+        <div class="invalid-feedback">
+          @if (form.controls.fullName.errors?.['maxlength']) {
+            Full name must be at most 200 characters.
+          } @else {
+            Full name is required.
+          }
+        </div>
+      }
     </div>
     <div class="mb-3">
       <label class="form-label" for="new-user-role">Role</label>
-      <select id="new-user-role" class="form-select" formControlName="role">
+      <select
+        id="new-user-role"
+        class="form-select"
+        formControlName="role"
+        [class.is-invalid]="form.controls.role.invalid && form.controls.role.touched"
+      >
         @for (role of roles; track role) {
           <option [value]="role">{{ role }}</option>
         }
       </select>
+      @if (form.controls.role.invalid && form.controls.role.touched) {
+        <div class="invalid-feedback">Role is required.</div>
+      }
     </div>
   </div>
   <div class="modal-footer">

@@ -15,6 +15,8 @@ namespace TicketService.Controllers;
 [Authorize(Roles = Roles.Admin)]
 public class UsersController(AppDbContext db, UserManager<ApplicationUser> userManager) : ControllerBase
 {
+    private const string NoRoleSentinel = "(no role)";
+
     [HttpGet]
     public async Task<ActionResult<PagedResult<UserSummaryDto>>> GetAll(
         [FromQuery] string? role, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
@@ -27,11 +29,16 @@ public class UsersController(AppDbContext db, UserManager<ApplicationUser> userM
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
+        // Left-outer join so a user with no UserRoles row (e.g. transiently, if role
+        // assignment ever fails) is still visible instead of silently disappearing
+        // from the list while still being reachable via GetById.
         var query =
             from u in db.Users
-            join ur in db.UserRoles on u.Id equals ur.UserId
-            join r in db.Roles on ur.RoleId equals r.Id
-            select new { User = u, RoleName = r.Name! };
+            join ur in db.UserRoles on u.Id equals ur.UserId into userRoles
+            from ur in userRoles.DefaultIfEmpty()
+            join r in db.Roles on ur.RoleId equals r.Id into roles
+            from r in roles.DefaultIfEmpty()
+            select new { User = u, RoleName = (string?)r.Name };
 
         if (role is not null)
         {
@@ -49,7 +56,7 @@ public class UsersController(AppDbContext db, UserManager<ApplicationUser> userM
         foreach (var entry in pageItems)
         {
             var isActive = !await userManager.IsLockedOutAsync(entry.User);
-            items.Add(new UserSummaryDto(entry.User.Id, entry.User.Email!, entry.User.FullName, entry.RoleName, isActive, entry.User.CreatedAtUtc));
+            items.Add(new UserSummaryDto(entry.User.Id, entry.User.Email!, entry.User.FullName, entry.RoleName ?? NoRoleSentinel, isActive, entry.User.CreatedAtUtc));
         }
 
         return Ok(new PagedResult<UserSummaryDto>(items, page, pageSize, totalCount));
@@ -88,7 +95,12 @@ public class UsersController(AppDbContext db, UserManager<ApplicationUser> userM
             return BadRequest(result.Errors.Select(e => e.Description));
         }
 
-        await userManager.AddToRoleAsync(user, request.Role);
+        var roleResult = await userManager.AddToRoleAsync(user, request.Role);
+        if (!roleResult.Succeeded)
+        {
+            await userManager.DeleteAsync(user);
+            return BadRequest(roleResult.Errors.Select(e => e.Description));
+        }
 
         return CreatedAtAction(
             nameof(GetById),
@@ -128,6 +140,11 @@ public class UsersController(AppDbContext db, UserManager<ApplicationUser> userM
         var addResult = await userManager.AddToRoleAsync(user, request.Role);
         if (!addResult.Succeeded)
         {
+            if (currentRoles.Count > 0)
+            {
+                await userManager.AddToRolesAsync(user, currentRoles);
+            }
+
             return BadRequest(addResult.Errors.Select(e => e.Description));
         }
 

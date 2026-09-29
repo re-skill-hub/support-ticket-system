@@ -33,14 +33,14 @@
       <div class="card tile">
         <div class="card-body">
           <p class="text-secondary small mb-1">Avg first response (min)</p>
-          <div class="value">{{ s.avgFirstResponseMinutes != null ? (s.avgFirstResponseMinutes | number: '1.0-1') : '—' }}</div>
+          <div class="value">{{ s.avgFirstResponseMinutes !== null ? (s.avgFirstResponseMinutes | number: '1.0-1') : '—' }}</div>
         </div>
       </div>
 
       <div class="card tile">
         <div class="card-body">
           <p class="text-secondary small mb-1">Avg resolution (min)</p>
-          <div class="value">{{ s.avgResolutionMinutes != null ? (s.avgResolutionMinutes | number: '1.0-1') : '—' }}</div>
+          <div class="value">{{ s.avgResolutionMinutes !== null ? (s.avgResolutionMinutes | number: '1.0-1') : '—' }}</div>
         </div>
       </div>
     </div>
@@ -97,7 +97,7 @@
                 <div class="bar-track">
                   <div class="bar-fill" [style.width.%]="bar.pct" [style.background]="bar.color"></div>
                 </div>
-                <span class="bar-value">{{ bar.minutes != null ? (bar.minutes | number: '1.0-1') : '—' }}</span>
+                <span class="bar-value">{{ bar.minutes !== null ? (bar.minutes | number: '1.0-1') : '—' }}</span>
               </div>
             }
           </div>

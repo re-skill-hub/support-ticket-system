@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { extractMessage } from '../../../../core/interceptors/error.interceptor';
 import { UserManagementService } from '../../../../core/services/user-management.service';
 import { Role } from '../../../../types/auth.types';
 
@@ -21,7 +22,7 @@ export class NewUserModal {
   readonly form = this.fb.group({
     email: this.fb.control('', [Validators.required, Validators.email]),
     password: this.fb.control('', [Validators.required, Validators.minLength(8)]),
-    fullName: this.fb.control('', [Validators.required]),
+    fullName: this.fb.control('', [Validators.required, Validators.maxLength(200)]),
     role: this.fb.control<Role>('Customer', [Validators.required]),
   });
 
@@ -39,7 +40,7 @@ export class NewUserModal {
       next: (user) => this.activeModal.close(user),
       error: (err) => {
         this.submitting.set(false);
-        this.errorMessage.set(err?.error?.message ?? 'Could not create user. Check the details and try again.');
+        this.errorMessage.set(extractMessage(err));
       },
     });
   }

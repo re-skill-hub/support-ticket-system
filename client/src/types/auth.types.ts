@@ -1,5 +1,9 @@
 export type Role = 'Customer' | 'SupportAgent' | 'Admin';
 
+export function isStaffRole(role: string): boolean {
+  return role !== 'Customer';
+}
+
 export interface AuthUser {
   id: string;
   email: string;

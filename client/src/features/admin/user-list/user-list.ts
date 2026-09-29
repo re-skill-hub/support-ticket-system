@@ -21,6 +21,7 @@ export class UserList implements OnInit {
   readonly authService = inject(AuthService);
 
   readonly loading = signal(true);
+  readonly loadError = signal(false);
   readonly users = signal<ManagedUser[]>([]);
   readonly totalCount = signal(0);
   readonly roleFilter = signal<Role | 'All'>('All');
@@ -45,7 +46,7 @@ export class UserList implements OnInit {
   }
 
   openNewUserModal(): void {
-    const modalRef = this.modal.open(NewUserModal);
+    const modalRef = this.modal.open(NewUserModal, { backdrop: 'static' });
     modalRef.result.then(
       () => this.load(),
       () => undefined,
@@ -59,6 +60,7 @@ export class UserList implements OnInit {
 
     this.userManagementService.changeRole(user.id, { role }).subscribe({
       next: () => this.load(),
+      error: () => this.load(),
     });
   }
 
@@ -69,6 +71,7 @@ export class UserList implements OnInit {
 
     this.userManagementService.setActive(user.id, { isActive: !user.isActive }).subscribe({
       next: () => this.load(),
+      error: () => this.load(),
     });
   }
 
@@ -76,8 +79,13 @@ export class UserList implements OnInit {
     return user.id === this.authService.currentUser()?.id;
   }
 
+  retry(): void {
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
+    this.loadError.set(false);
     const roleFilter = this.roleFilter();
     this.userManagementService
       .list(roleFilter === 'All' ? undefined : roleFilter, this.page(), this.pageSize)
@@ -87,7 +95,10 @@ export class UserList implements OnInit {
           this.totalCount.set(result.totalCount);
           this.loading.set(false);
         },
-        error: () => this.loading.set(false),
+        error: () => {
+          this.loading.set(false);
+          this.loadError.set(true);
+        },
       });
   }
 }

@@ -22,7 +22,7 @@ public class ResponseAddedConsumer(
         using var _ = ObservabilityExtensions.PushCorrelationId(context.CorrelationId);
 
         var message = context.Message;
-        if (message.AuthorRole != Roles.SupportAgent)
+        if (!Roles.IsStaff(message.AuthorRole))
         {
             return;
         }

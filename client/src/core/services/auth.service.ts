@@ -1,5 +1,5 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, signal, inject } from '@angular/core';
 import { Observable, catchError, firstValueFrom, of, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthResponse, AuthUser, LoginRequest, RegisterRequest } from '../../types/auth.types';
@@ -7,6 +7,8 @@ import { SILENT_AUTH_CHECK } from '../interceptors/error.interceptor';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private readonly http = inject(HttpClient);
+
   private readonly baseUrl = `${environment.ticketApiUrl}/auth`;
 
   readonly currentUser = signal<AuthUser | null>(null);
@@ -15,8 +17,6 @@ export class AuthService {
   readonly isCustomer = computed(() => this.currentUser()?.role === 'Customer');
   readonly isAdmin = computed(() => this.currentUser()?.role === 'Admin');
   readonly isStaff = computed(() => this.isAgent() || this.isAdmin());
-
-  constructor(private readonly http: HttpClient) {}
 
   register(request: RegisterRequest): Observable<AuthResponse> {
     return this.http
@@ -43,7 +43,9 @@ export class AuthService {
   initialize(): Promise<void> {
     return firstValueFrom(
       this.http
-        .get<AuthResponse>(`${this.baseUrl}/me`, { context: new HttpContext().set(SILENT_AUTH_CHECK, true) })
+        .get<AuthResponse>(`${this.baseUrl}/me`, {
+          context: new HttpContext().set(SILENT_AUTH_CHECK, true),
+        })
         .pipe(
           tap((response) => this.setSession(response)),
           catchError(() => {

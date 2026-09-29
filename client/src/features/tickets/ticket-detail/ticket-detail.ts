@@ -7,6 +7,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { TicketService } from '../../../core/services/ticket.service';
 import { ResponseService } from '../../../core/services/response.service';
 import { Ticket, TicketStatus } from '../../../types/ticket.types';
+import { isStaffRole } from '../../../types/auth.types';
 import { TicketResponseMessage } from '../../../types/response.types';
 import { StatusChip } from '../../../shared/status-chip/status-chip';
 import { PriorityChip } from '../../../shared/priority-chip/priority-chip';
@@ -32,6 +33,7 @@ export class TicketDetail implements OnInit {
   readonly sending = signal(false);
   readonly statuses: TicketStatus[] = ['Open', 'InProgress', 'Closed'];
   readonly statusControl = new FormControl<TicketStatus>('Open', { nonNullable: true });
+  readonly isStaffRole = isStaffRole;
 
   readonly replyForm = this.fb.group({
     message: this.fb.control('', [Validators.required]),

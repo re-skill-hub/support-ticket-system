@@ -16,7 +16,7 @@ public class ResponseAddedConsumer(AppDbContext db, ILogger<ResponseAddedConsume
 
         var message = context.Message;
 
-        if (message.AuthorRole != Roles.SupportAgent)
+        if (!Roles.IsStaff(message.AuthorRole))
         {
             return;
         }

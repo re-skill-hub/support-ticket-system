@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Role } from '../../types/auth.types';
@@ -13,9 +13,9 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class UserManagementService {
-  private readonly baseUrl = `${environment.ticketApiUrl}/users`;
+  private readonly http = inject(HttpClient);
 
-  constructor(private readonly http: HttpClient) {}
+  private readonly baseUrl = `${environment.ticketApiUrl}/users`;
 
   list(role?: Role, page = 1, pageSize = 20): Observable<PagedResult<ManagedUser>> {
     const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
