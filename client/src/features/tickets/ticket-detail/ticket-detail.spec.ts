@@ -116,4 +116,21 @@ describe('TicketDetail', () => {
     expect(ticketService.assignToSelf).toHaveBeenCalledWith('t1');
     expect(fixture.componentInstance.ticket()?.assignedAgentId).toBe('agent1');
   });
+
+  it('styles SupportAgent and Admin responses as staff, but not Customer', () => {
+    const responses: TicketResponseMessage[] = [
+      { ...response, id: 'r1', authorRole: 'Customer' },
+      { ...response, id: 'r2', authorRole: 'SupportAgent' },
+      { ...response, id: 'r3', authorRole: 'Admin' },
+    ];
+    responseService.getByTicket.mockReturnValue(of(responses));
+
+    const fixture = createComponent();
+    const cards = fixture.nativeElement.querySelectorAll('.response-card') as NodeListOf<HTMLElement>;
+
+    expect(cards).toHaveLength(3);
+    expect(cards[0].classList.contains('agent')).toBe(false);
+    expect(cards[1].classList.contains('agent')).toBe(true);
+    expect(cards[2].classList.contains('agent')).toBe(true);
+  });
 });

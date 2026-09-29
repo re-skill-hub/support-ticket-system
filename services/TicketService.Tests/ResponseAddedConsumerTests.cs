@@ -12,8 +12,10 @@ namespace TicketService.Tests;
 
 public class ResponseAddedConsumerTests
 {
-    [Fact]
-    public async Task AgentFirstResponse_ChangesTicketAndPublishesStatusChanged()
+    [Theory]
+    [InlineData(Roles.SupportAgent)]
+    [InlineData(Roles.Admin)]
+    public async Task StaffFirstResponse_ChangesTicketAndPublishesStatusChanged(string staffRole)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -32,7 +34,7 @@ public class ResponseAddedConsumerTests
             .Returns(Task.CompletedTask);
 
         var correlationId = Guid.NewGuid();
-        var message = new ResponseAdded(Guid.NewGuid(), ticket.Id, "agent-1", Roles.SupportAgent, "On it.", DateTime.UtcNow);
+        var message = new ResponseAdded(Guid.NewGuid(), ticket.Id, "agent-1", staffRole, "On it.", DateTime.UtcNow);
         var consumeContext = new Mock<ConsumeContext<ResponseAdded>>();
         consumeContext.SetupGet(context => context.Message).Returns(message);
         consumeContext.SetupGet(context => context.CorrelationId).Returns(correlationId);

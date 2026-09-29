@@ -97,6 +97,18 @@ describe('errorInterceptor', () => {
     expect(toastService.show).toHaveBeenCalledWith('Title is required, Description is required', 'danger');
   });
 
+  it('flattens a ValidationProblemDetails error body', async () => {
+    const error = new HttpErrorResponse({
+      status: 400,
+      error: { errors: { FullName: ['The field FullName must be a string with a maximum length of 200.'] } },
+    });
+    await expect(run(error)).rejects.toBeTruthy();
+    expect(toastService.show).toHaveBeenCalledWith(
+      'The field FullName must be a string with a maximum length of 200.',
+      'danger',
+    );
+  });
+
   it('falls back to a generic message with the status code', async () => {
     const error = new HttpErrorResponse({ status: 500 });
     await expect(run(error)).rejects.toBeTruthy();
