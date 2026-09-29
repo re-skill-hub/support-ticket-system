@@ -2,6 +2,8 @@
 
 This runbook deploys the support-ticket system to one low-cost development AKS environment through Azure DevOps. The `k8s/azure-dev` overlay intentionally uses single-replica SQL Server and RabbitMQ for a self-contained trial. Replace those dependencies with Azure SQL and a managed RabbitMQ-compatible broker before production.
 
+![End-to-end deployment diagram: GitHub triggers an Azure DevOps pipeline that reads secrets from Key Vault, authenticates to AKS as the least-privilege ci-deployer identity, and pushes images through ACR; inside AKS, ingress-nginx and cert-manager terminate TLS in front of the client/services/RabbitMQ architecture, with Container Insights streaming logs and metrics to Log Analytics](architecture-diagram-e2e.svg)
+
 **Cost notes — nothing here is free while running, even on a trial subscription:**
 - The client's public `LoadBalancer` (and any static public IP attached to it, including the one provisioned for TLS below) bills hourly for as long as it exists, not just when it's idle "leftover cruft" — delete it with the rest of the resource group when not actively demoing.
 - ACR Basic is ~US$5/month flat, not free.
@@ -82,6 +84,8 @@ Create a variable group named `support-ticketing-dev` with these non-secret valu
 | `acrLoginServer` | The ACR login server, for example, `<acr-name>.azurecr.io` |
 | `kubernetesNamespace` | `support-ticketing-dev` |
 | `clientEndpoint` | Public client URL, including scheme and port if needed; no trailing slash or path |
+| `initialAdminEmail` | Optional. Email for the seeded initial Admin account; leave empty to disable |
+| `initialAdminFullName` | Optional. Display name for the seeded initial Admin account |
 
 ### Secrets via Azure Key Vault
 
@@ -97,7 +101,7 @@ az keyvault create \
 
 Grant the service connection's identity (the managed identity or app registration behind `sc-support-ticket-dev`) the `Key Vault Secrets User` role scoped to the vault, so the pipeline can read secrets at runtime. Grant your own account `Key Vault Secrets Officer` on the vault so you can populate secret values (RBAC-mode vaults grant no implicit access, even to the creator).
 
-Populate the five secrets (Key Vault secret names cannot contain underscores, so use hyphens):
+Populate the six secrets (Key Vault secret names cannot contain underscores, so use hyphens):
 
 ```bash
 az keyvault secret set --vault-name <vault-name> --name MSSQL-SA-PASSWORD --value "<value>"
@@ -105,11 +109,14 @@ az keyvault secret set --vault-name <vault-name> --name RABBITMQ-USER --value "<
 az keyvault secret set --vault-name <vault-name> --name RABBITMQ-PASS --value "<value>"
 az keyvault secret set --vault-name <vault-name> --name JWT-SECRET --value "<value>"
 az keyvault secret set --vault-name <vault-name> --name K8S-CI-TOKEN --value "<ci-deployer ServiceAccount token>"
+az keyvault secret set --vault-name <vault-name> --name INITIAL-ADMIN-PASSWORD --value "<value, or omit to leave the initial Admin seed disabled>"
 ```
 
 `K8S-CI-TOKEN` is the least-privilege deploy credential the pipeline authenticates as instead of the cluster-admin credential `az aks get-credentials` otherwise hands out — see "Deploy identity" below for how to create it and `docs/ci-cd-pipeline.md` for how the pipeline uses it.
 
-Create a second variable group named `support-ticketing-dev-secrets` of type `AzureKeyVault`, linked to the vault via `sc-support-ticket-dev`, listing the five secret names above. The Azure DevOps CLI does not support creating Key-Vault-linked variable groups; use the REST API instead:
+`INITIAL-ADMIN-PASSWORD` seeds the initial Admin account (see `initialAdminEmail`/`initialAdminFullName` in the variable table above). Leaving it and the two non-secret variables unset disables the seed everywhere — unlike the Development-only `LOCAL_AGENT_*` seed used locally, this one would otherwise run in every environment, so an empty value is the only way to opt out on a shared cluster.
+
+Create a second variable group named `support-ticketing-dev-secrets` of type `AzureKeyVault`, linked to the vault via `sc-support-ticket-dev`, listing the six secret names above. The Azure DevOps CLI does not support creating Key-Vault-linked variable groups; use the REST API instead:
 
 ```bash
 az rest --method post \

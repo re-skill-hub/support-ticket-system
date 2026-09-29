@@ -12,6 +12,7 @@ describe('AuthService', () => {
   const baseUrl = `${environment.ticketApiUrl}/auth`;
 
   const authResponse: AuthResponse = {
+    id: 'u1',
     email: 'customer1@support.local',
     fullName: 'Cust Omer',
     role: 'Customer',
@@ -41,12 +42,15 @@ describe('AuthService', () => {
 
     expect(service.isAuthenticated()).toBe(true);
     expect(service.currentUser()).toEqual({
+      id: authResponse.id,
       email: authResponse.email,
       fullName: authResponse.fullName,
       role: authResponse.role,
     });
     expect(service.isCustomer()).toBe(true);
     expect(service.isAgent()).toBe(false);
+    expect(service.isAdmin()).toBe(false);
+    expect(service.isStaff()).toBe(false);
   });
 
   it('sets currentUser on successful register', () => {
@@ -66,6 +70,19 @@ describe('AuthService', () => {
 
     expect(service.isAgent()).toBe(true);
     expect(service.isCustomer()).toBe(false);
+    expect(service.isAdmin()).toBe(false);
+    expect(service.isStaff()).toBe(true);
+  });
+
+  it('flags Admin role correctly, including staff-wide access', () => {
+    service.login({ email: 'admin@support.local', password: 'secret' }).subscribe();
+
+    httpMock.expectOne(`${baseUrl}/login`).flush({ ...authResponse, role: 'Admin' });
+
+    expect(service.isAdmin()).toBe(true);
+    expect(service.isAgent()).toBe(false);
+    expect(service.isCustomer()).toBe(false);
+    expect(service.isStaff()).toBe(true);
   });
 
   it('clears currentUser on logout', () => {

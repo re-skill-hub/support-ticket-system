@@ -1,6 +1,11 @@
-export type Role = 'Customer' | 'SupportAgent';
+export type Role = 'Customer' | 'SupportAgent' | 'Admin';
+
+export function isStaffRole(role: string): boolean {
+  return role !== 'Customer';
+}
 
 export interface AuthUser {
+  id: string;
   email: string;
   fullName: string;
   role: Role;
@@ -18,6 +23,7 @@ export interface LoginRequest {
 }
 
 export interface AuthResponse {
+  id: string;
   email: string;
   fullName: string;
   role: Role;

@@ -27,13 +27,14 @@ public class ResponsesController(AppDbContext db, IPublishEndpoint publishEndpoi
         }
 
         var userId = User.GetUserId();
-        var isAgent = User.IsInRole(Roles.SupportAgent);
-        if (!isAgent && ticketRef.CustomerId != userId)
+        if (!User.IsStaff() && ticketRef.CustomerId != userId)
         {
             return Forbid();
         }
 
-        var authorRole = isAgent ? Roles.SupportAgent : Roles.Customer;
+        var authorRole = User.IsInRole(Roles.Admin) ? Roles.Admin
+            : User.IsInRole(Roles.SupportAgent) ? Roles.SupportAgent
+            : Roles.Customer;
 
         var response = new Response
         {
@@ -67,8 +68,7 @@ public class ResponsesController(AppDbContext db, IPublishEndpoint publishEndpoi
             return NotFound(new { message = "Unknown ticket." });
         }
 
-        var isAgent = User.IsInRole(Roles.SupportAgent);
-        if (!isAgent && ticketRef.CustomerId != User.GetUserId())
+        if (!User.IsStaff() && ticketRef.CustomerId != User.GetUserId())
         {
             return Forbid();
         }

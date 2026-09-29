@@ -1,20 +1,24 @@
 import { inject } from '@angular/core';
-import { CanMatchFn, Route, Router, UrlSegment } from '@angular/router';
+import { CanMatchFn, Route, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { Role } from '../../types/auth.types';
 
-export const roleGuard: CanMatchFn = (route: Route, _segments: UrlSegment[]) => {
+export const roleGuard: CanMatchFn = (route: Route) => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  const requiredRole = route.data?.['role'] as Role | undefined;
+  const requiredRole = route.data?.['role'] as Role | Role[] | undefined;
   const user = authService.currentUser();
 
   if (!user) {
     return router.createUrlTree(['/login']);
   }
 
-  if (requiredRole && user.role !== requiredRole) {
+  const allowedRoles = requiredRole === undefined
+    ? undefined
+    : Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return router.createUrlTree(['/']);
   }
 

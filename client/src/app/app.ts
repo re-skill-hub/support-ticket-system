@@ -14,5 +14,5 @@ import { AuthService } from '../core/services/auth.service';
 export class App {
   private readonly authService = inject(AuthService);
 
-  readonly isAgent = this.authService.isAgent;
+  readonly isStaff = this.authService.isStaff;
 }

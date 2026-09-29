@@ -63,6 +63,36 @@ spec:
               value: $(RABBITMQ_USER)
             - name: RabbitMq__Password
               value: $(RABBITMQ_PASS)
+            - name: InitialAdmin__Email
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: INITIAL_ADMIN_EMAIL
+            - name: InitialAdmin__FullName
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: INITIAL_ADMIN_FULL_NAME
+            - name: InitialAdmin__Password
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: INITIAL_ADMIN_PASSWORD
+            - name: LocalAgent__Email
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: LOCAL_AGENT_EMAIL
+            - name: LocalAgent__FullName
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: LOCAL_AGENT_FULL_NAME
+            - name: LocalAgent__Password
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: LOCAL_AGENT_PASSWORD
             - name: ConnectionStrings__DefaultConnection
               value: Server=sqlserver,1433;Database=TicketServiceDb;User Id=sa;Password=$(MSSQL_SA_PASSWORD);TrustServerCertificate=True;
           resources:

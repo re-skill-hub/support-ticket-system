@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { interval, startWith } from 'rxjs';
 import { NgbCollapse } from '@ng-bootstrap/ng-bootstrap';
@@ -14,13 +14,11 @@ const UNREAD_POLL_INTERVAL_MS = 30_000;
   styleUrl: './agent-shell.scss',
 })
 export class AgentShell implements OnInit {
-  readonly collapsed = signal(true);
+  readonly authService = inject(AuthService);
+  readonly notificationService = inject(NotificationService);
+  private readonly router = inject(Router);
 
-  constructor(
-    readonly authService: AuthService,
-    readonly notificationService: NotificationService,
-    private readonly router: Router,
-  ) {}
+  readonly collapsed = signal(true);
 
   ngOnInit(): void {
     interval(UNREAD_POLL_INTERVAL_MS)

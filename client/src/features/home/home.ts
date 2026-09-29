@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
@@ -8,5 +8,5 @@ import { AuthService } from '../../core/services/auth.service';
   styleUrl: './home.scss',
 })
 export class Home {
-  constructor(readonly authService: AuthService) {}
+  readonly authService = inject(AuthService);
 }

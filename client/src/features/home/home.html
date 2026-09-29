@@ -7,7 +7,7 @@
       @if (authService.isCustomer()) {
         <p class="mb-0">Use "My Tickets" to view your support requests or "New Ticket" to raise a new one.</p>
       }
-      @if (authService.isAgent()) {
+      @if (authService.isStaff()) {
         <p class="mb-0">Use "Ticket Queue" to respond to customers or "Dashboard" to see response-time metrics.</p>
       }
     </div>

@@ -57,11 +57,11 @@ Snapshot date: 2026-09-28.
 |---|---|---|
 | Test coverage for the Angular app (implied by "Testing" as a lifecycle stage in the design doc, and the Jasmine tooling it specifies) | Only the CLI-generated `src/app/app.spec.ts` boilerplate existed — zero real tests for any of the 5 core services, 2 guards, 2 interceptors, or feature components | **Implemented.** Vitest unit tests added for all 5 services (`auth`, `ticket`, `response`, `notification`, `metrics`), both guards (`auth.guard`, `role.guard`), and both interceptors (`auth.interceptor`, `error.interceptor`) using `HttpTestingController` and `TestBed.runInInjectionContext`; smoke-level component tests added for the three components the design doc names explicitly — `ticket-list`/`ticket-queue` (the doc's single "ticket list" view, split here into a customer view and an agent queue), `ticket-new`, and `ticket-detail`. |
 
-## Out of scope
+## User management
 
-| Design doc requirement | Why it wasn't implemented |
-|---|---|
-| `GET /users/{id}` — retrieve another user's details | No screen or workflow in this system ever needs to view a user profile other than "who am I" (`GET /api/auth/me`, already implemented). Customers only see their own tickets; agents see ticket metadata (`assignedAgentId` as an id, not a profile) but never a separate user-lookup screen. Adding the endpoint without a consumer would be speculative surface area, so it's recorded here as a known, intentional gap rather than built. |
+| Design doc requirement | Current state | Resolution |
+|---|---|---|
+| `GET /users/{id}` — retrieve another user's details | `UsersController` (Admin-only) now exposes the full user-management surface: `GET /api/users` (paginated, role-filterable), `GET /api/users/{id}`, `POST /api/users` (create with any role), `PUT /api/users/{id}/role`, `PATCH /api/users/{id}/status` (activate/deactivate) | **Implemented.** This is net-new scope beyond the design doc (which only ever specifies Customer + Support Staff, not a third Admin role), added at the user's request. The admin user-management screen (`/admin/users`) is the real consumer this endpoint was previously missing — see `README.md` for the third role and the `INITIAL_ADMIN_*` bootstrap. |
 
 ## See also
 

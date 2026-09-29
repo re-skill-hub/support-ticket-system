@@ -9,7 +9,7 @@ namespace NotificationService.Controllers;
 
 [ApiController]
 [Route("api/metrics")]
-[Authorize(Roles = Roles.SupportAgent)]
+[Authorize(Roles = Roles.StaffRoles)]
 public class MetricsController(AppDbContext db) : ControllerBase
 {
     [HttpGet("summary")]

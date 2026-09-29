@@ -1,0 +1,18 @@
+.user-list-page {
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .filter {
+    width: 160px;
+  }
+
+  .role-select {
+    width: 160px;
+  }
+}

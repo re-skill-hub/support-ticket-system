@@ -45,8 +45,10 @@ public class ConsumerTests
         Assert.Equal("Open", metric.Status);
     }
 
-    [Fact]
-    public async Task ResponseAddedConsumer_AgentReply_SetsFirstResponseAndCreatesNotification()
+    [Theory]
+    [InlineData(Roles.SupportAgent)]
+    [InlineData(Roles.Admin)]
+    public async Task ResponseAddedConsumer_StaffReply_SetsFirstResponseAndCreatesNotification(string staffRole)
     {
         using var db = CreateDbContext();
         var ticketId = Guid.NewGuid();
@@ -55,7 +57,7 @@ public class ConsumerTests
         await db.SaveChangesAsync();
 
         var consumer = new ResponseAddedConsumer(db, new Mock<ILogger<ResponseAddedConsumer>>().Object);
-        var message = new ResponseAdded(Guid.NewGuid(), ticketId, "agent-1", Roles.SupportAgent, "We're on it.", DateTime.UtcNow);
+        var message = new ResponseAdded(Guid.NewGuid(), ticketId, "agent-1", staffRole, "We're on it.", DateTime.UtcNow);
 
         await consumer.Consume(CreateConsumeContext(message).Object);
 

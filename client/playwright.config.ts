@@ -7,7 +7,7 @@ dotenv.config({ path: resolve(process.cwd(), '..', '.env') });
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
-  reporter: 'list',
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:4200',
     ...devices['Desktop Chrome'],

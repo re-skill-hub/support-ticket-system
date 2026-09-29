@@ -115,6 +115,24 @@ public class ResponsesControllerTests
     }
 
     [Fact]
+    public async Task Create_AdminNotOwningTicket_IsAllowed()
+    {
+        using var db = CreateDbContext();
+        var ticketId = Guid.NewGuid();
+        db.TicketRefs.Add(new TicketRef { TicketId = ticketId, CustomerId = "customer-1", Status = "Open", CreatedAtUtc = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, new Mock<IPublishEndpoint>(), "admin-1", Roles.Admin);
+
+        var result = await controller.Create(new CreateResponseRequest(ticketId, "We're on it."));
+
+        var created = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var dto = Assert.IsType<ResponseDto>(created.Value);
+        Assert.Equal(Roles.Admin, dto.AuthorRole);
+        Assert.Equal("admin-1", dto.AuthorUserId);
+    }
+
+    [Fact]
     public async Task GetByTicket_UnknownTicketRef_ReturnsNotFound()
     {
         using var db = CreateDbContext();
@@ -160,5 +178,20 @@ public class ResponsesControllerTests
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var responses = Assert.IsAssignableFrom<IEnumerable<ResponseDto>>(ok.Value).ToList();
         Assert.Equal(["first", "second"], responses.Select(r => r.Message));
+    }
+
+    [Fact]
+    public async Task GetByTicket_AdminNotOwningTicket_IsAllowed()
+    {
+        using var db = CreateDbContext();
+        var ticketId = Guid.NewGuid();
+        db.TicketRefs.Add(new TicketRef { TicketId = ticketId, CustomerId = "customer-1", Status = "Open", CreatedAtUtc = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, new Mock<IPublishEndpoint>(), "admin-1", Roles.Admin);
+
+        var result = await controller.GetByTicket(ticketId);
+
+        Assert.IsType<OkObjectResult>(result.Result);
     }
 }

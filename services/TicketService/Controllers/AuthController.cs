@@ -41,7 +41,7 @@ public class AuthController(
 
         var token = tokenService.CreateToken(user, [Roles.Customer]);
         SetAuthCookie(token);
-        return Ok(new AuthResponse(user.Email!, user.FullName, Roles.Customer));
+        return Ok(new AuthResponse(user.Id, user.Email!, user.FullName, Roles.Customer));
     }
 
     [HttpPost("login")]
@@ -59,7 +59,7 @@ public class AuthController(
         var role = roles.FirstOrDefault() ?? Roles.Customer;
         var token = tokenService.CreateToken(user, roles);
         SetAuthCookie(token);
-        return Ok(new AuthResponse(user.Email!, user.FullName, role));
+        return Ok(new AuthResponse(user.Id, user.Email!, user.FullName, role));
     }
 
     [HttpPost("logout")]
@@ -79,10 +79,11 @@ public class AuthController(
     [Authorize]
     public ActionResult<AuthResponse> Me()
     {
+        var id = User.GetUserId();
         var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? string.Empty;
         var fullName = User.FindFirst("fullName")?.Value ?? string.Empty;
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? Roles.Customer;
-        return Ok(new AuthResponse(email, fullName, role));
+        return Ok(new AuthResponse(id, email, fullName, role));
     }
 
     private void SetAuthCookie(string token)

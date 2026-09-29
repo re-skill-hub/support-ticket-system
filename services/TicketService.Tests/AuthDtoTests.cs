@@ -16,6 +16,7 @@ public class CriticalPathAuthDtoTests
         var props = type.GetProperties(BindingFlags.Public | BindingFlags.IgnoreCase | BindingFlags.Instance);
         var propNames = props.Select(p => p.Name).ToHashSet();
 
+        Assert.Contains("Id", propNames);
         Assert.Contains("Email", propNames);
         Assert.Contains("FullName", propNames);
         Assert.Contains("Role", propNames);
@@ -49,7 +50,8 @@ public class CriticalPathAuthDtoTests
     [Fact]
     public void AuthResponse_CanBeConstructed()
     {
-        var response = new AuthResponse("user@domain.com", "User Name", "Customer");
+        var response = new AuthResponse("user-1", "user@domain.com", "User Name", "Customer");
+        Assert.Equal("user-1", response.Id);
         Assert.Equal("user@domain.com", response.Email);
         Assert.Equal("User Name", response.FullName);
         Assert.Equal("Customer", response.Role);

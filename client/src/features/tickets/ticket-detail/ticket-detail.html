@@ -18,7 +18,7 @@
           <app-priority-chip [priority]="t.priority" />
           <span class="category text-secondary small">{{ t.category }}</span>
 
-          @if (authService.isAgent()) {
+          @if (authService.isStaff()) {
             <select class="form-select form-select-sm status-select" [formControl]="statusControl" aria-label="Status">
               @for (status of statuses; track status) {
                 <option [value]="status">{{ status }}</option>
@@ -43,7 +43,7 @@
     } @else {
       <div class="thread">
         @for (response of responses(); track response.id) {
-          <div class="card response-card" [class.agent]="response.authorRole === 'SupportAgent'">
+          <div class="card response-card" [class.agent]="isStaffRole(response.authorRole)">
             <div class="card-body py-2">
               <p class="text-secondary small mb-1">{{ response.authorRole }} &middot; {{ response.createdAtUtc | date: 'short' }}</p>
               <p class="mb-0">{{ response.message }}</p>

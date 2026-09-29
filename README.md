@@ -21,6 +21,10 @@ Services communicate only through RabbitMQ events (`TicketCreated`, `TicketStatu
 
 ![Architecture diagram: Angular client calling three independent services, each with its own database, exchanging events through RabbitMQ](docs/architecture-diagram.svg)
 
+The diagram above is app-only. For the full picture including the Azure DevOps pipeline, Key Vault, ACR, and the AKS cluster it deploys to, see the end-to-end deployment diagram:
+
+![End-to-end deployment diagram: GitHub triggers an Azure DevOps pipeline that reads secrets from Key Vault, authenticates to AKS as the least-privilege ci-deployer identity, and pushes images through ACR; inside AKS, ingress-nginx and cert-manager terminate TLS in front of the same client/services/RabbitMQ architecture, with Container Insights streaming logs and metrics to Log Analytics](docs/architecture-diagram-e2e.svg)
+
 Every service exposes `GET /health/live` (process-alive only, checked by its own Docker healthcheck) and `GET /health/ready` (SQL Server + RabbitMQ dependency check, used by Kubernetes readiness probes) — split so a transient dependency blip pulls a pod out of rotation instead of restarting it. Every service also logs structured JSON to the console enriched with a `CorrelationId` that flows from the originating HTTP request through every downstream consumer — so a single ticket's event chain is traceable across all three services' logs.
 
 ## Prerequisites
@@ -41,6 +45,7 @@ That's it — the SDKs, Node, and Angular CLI used to build the images are baked
    - `RABBITMQ_USER` / `RABBITMQ_PASS` — any credentials for the RabbitMQ container
    - `MSSQL_SA_PASSWORD` — must satisfy SQL Server's complexity policy (8+ characters, mixing upper/lower/digit or symbol) or the container will fail to start
    - `LOCAL_AGENT_EMAIL` / `LOCAL_AGENT_PASSWORD` — set both to provision a local-only support agent for browser E2E; leave both empty to disable it
+   - `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` — set both to provision an initial Admin account; unlike `LOCAL_AGENT_*`, this seed runs in every environment (not just local Docker Compose), since it's the only way to bootstrap the first Admin who can then create everyone else. Leave both empty to disable it.
 
 2. Build and start everything:
 
@@ -62,11 +67,11 @@ Data persists across restarts via named volumes (`sqlserver-data`, `rabbitmq-dat
 
 ## Logging in
 
-New accounts registered through the Angular app become **Customers**. Support-agent accounts must be provisioned through an administrator-controlled process; no reusable support credentials are shipped with the application.
+There are three roles: **Customer**, **SupportAgent**, and **Admin**. New accounts registered through the Angular app always become Customers — self-registration never produces a SupportAgent or Admin account. Staff and Admin accounts only come from an Admin using the "Manage Users" screen (`/admin/users`) to create one, change an existing account's role, or deactivate an account; no reusable support credentials are shipped with the application, and there is no self-service way to create additional agents.
 
-There is no self-service way to create additional agents — that's intentionally out of scope for this capstone.
+The first Admin has to come from somewhere before anyone can use that screen, so TicketService can optionally seed one initial Admin account on startup from `INITIAL_ADMIN_EMAIL`/`INITIAL_ADMIN_PASSWORD`/`INITIAL_ADMIN_FULL_NAME`. Unlike the local-only support agent below, this seed is **not** Development-gated — it runs in every environment (local Docker Compose and the AKS trial deployment alike), since without it a freshly-provisioned environment would have no Admin at all.
 
-For local Docker Compose runs only, TicketService creates the optional support agent when both `LOCAL_AGENT_EMAIL` and `LOCAL_AGENT_PASSWORD` are set in `.env`. The bootstrap is guarded by the Development environment and is not enabled for Kubernetes or production.
+For local Docker Compose runs only, TicketService can also create an optional support agent when both `LOCAL_AGENT_EMAIL` and `LOCAL_AGENT_PASSWORD` are set in `.env`. This bootstrap is guarded by the Development environment and is not enabled for Kubernetes or production — it exists purely for the browser E2E test below.
 
 ## Browser end-to-end test
 
@@ -95,6 +100,8 @@ The test registers a customer, creates a ticket, signs in as the local agent to 
 3. Open a ticket, "Assign to me", reply — the ticket automatically flips from `Open` to `InProgress` on its first response.
 4. Change status to `Closed` when resolved.
 5. "Dashboard" shows live counts (open/in-progress/closed) and average first-response/resolution times across all tickets.
+
+**As an admin:** everything a support agent can do, plus "Manage Users" — list/filter accounts by role, create a Customer/SupportAgent/Admin account, change an account's role, and activate/deactivate an account. An admin can't change their own role or deactivate their own account (self-protection, enforced both in the UI and by the API).
 
 ## Tracing a request across services
 

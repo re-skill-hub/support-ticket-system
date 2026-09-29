@@ -35,7 +35,12 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   );
 };
 
-function extractMessage(error: HttpErrorResponse): string {
+/**
+ * Extracts a human-readable message from a backend error response, handling the three
+ * shapes this API can return: a bare string array (Identity errors), ValidationProblemDetails
+ * (`{errors: {field: [...]}}` from DataAnnotations failures), or `{message}`.
+ */
+export function extractMessage(error: HttpErrorResponse): string {
   if (error.status === 0) {
     return 'Unable to reach the server. Please try again.';
   }
@@ -49,11 +54,17 @@ function extractMessage(error: HttpErrorResponse): string {
   if (typeof body === 'string') {
     return body;
   }
-  if (body?.message) {
-    return body.message;
-  }
   if (Array.isArray(body)) {
     return body.join(', ');
+  }
+  if (body?.errors && typeof body.errors === 'object') {
+    const messages = Object.values(body.errors).flat();
+    if (messages.length > 0) {
+      return messages.join(', ');
+    }
+  }
+  if (body?.message) {
+    return body.message;
   }
   return `Something went wrong (${error.status}).`;
 }

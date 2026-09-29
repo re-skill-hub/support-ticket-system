@@ -1,14 +1,20 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { CreateTicketRequest, Ticket, TicketPriority, TicketStatus, UpdateTicketStatusRequest } from '../../types/ticket.types';
+import {
+  CreateTicketRequest,
+  Ticket,
+  TicketPriority,
+  TicketStatus,
+  UpdateTicketStatusRequest,
+} from '../../types/ticket.types';
 
 @Injectable({ providedIn: 'root' })
 export class TicketService {
-  private readonly baseUrl = `${environment.ticketApiUrl}/tickets`;
+  private readonly http = inject(HttpClient);
 
-  constructor(private readonly http: HttpClient) {}
+  private readonly baseUrl = `${environment.ticketApiUrl}/tickets`;
 
   create(request: CreateTicketRequest): Observable<Ticket> {
     return this.http.post<Ticket>(this.baseUrl, request);

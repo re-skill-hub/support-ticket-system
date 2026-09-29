@@ -125,6 +125,25 @@ public class TicketsControllerTests
     }
 
     [Fact]
+    public async Task GetAll_FiltersByStatus_WhenProvided_AsAdmin()
+    {
+        using var db = CreateDbContext();
+        db.Tickets.AddRange(
+            new Ticket { CustomerId = "customer-1", Title = "Open one", Description = "d", Status = TicketStatus.Open },
+            new Ticket { CustomerId = "customer-1", Title = "Closed one", Description = "d", Status = TicketStatus.Closed });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, new Mock<IPublishEndpoint>(), "admin-1", Roles.Admin);
+
+        var result = await controller.GetAll(TicketStatus.Closed, priority: null);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var tickets = Assert.IsAssignableFrom<IEnumerable<TicketResponse>>(ok.Value);
+        Assert.Single(tickets);
+        Assert.Equal(TicketStatus.Closed, tickets.Single().Status);
+    }
+
+    [Fact]
     public async Task GetById_OwnerCanAccess()
     {
         using var db = CreateDbContext();
@@ -149,6 +168,21 @@ public class TicketsControllerTests
         await db.SaveChangesAsync();
 
         var controller = CreateController(db, new Mock<IPublishEndpoint>(), "agent-1", Roles.SupportAgent);
+
+        var result = await controller.GetById(ticket.Id);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetById_AdminCanAccess()
+    {
+        using var db = CreateDbContext();
+        var ticket = new Ticket { CustomerId = "customer-1", Title = "t", Description = "d" };
+        db.Tickets.Add(ticket);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, new Mock<IPublishEndpoint>(), "admin-1", Roles.Admin);
 
         var result = await controller.GetById(ticket.Id);
 
@@ -191,6 +225,32 @@ public class TicketsControllerTests
 
         var publishEndpoint = new Mock<IPublishEndpoint>();
         var controller = CreateController(db, publishEndpoint, "agent-1", Roles.SupportAgent);
+
+        var result = await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.InProgress));
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal(TicketStatus.InProgress, Assert.IsType<TicketResponse>(ok.Value).Status);
+
+        publishEndpoint.Verify(p => p.Publish(
+            It.Is<TicketStatusChanged>(e =>
+                e.TicketId == ticket.Id &&
+                e.PreviousStatus == "Open" &&
+                e.NewStatus == "InProgress"),
+            It.IsAny<IPipe<PublishContext<TicketStatusChanged>>>(),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateStatus_ChangingStatus_PublishesTicketStatusChanged_AsAdmin()
+    {
+        using var db = CreateDbContext();
+        var ticket = new Ticket { CustomerId = "customer-1", Title = "t", Description = "d", Status = TicketStatus.Open };
+        db.Tickets.Add(ticket);
+        await db.SaveChangesAsync();
+
+        var publishEndpoint = new Mock<IPublishEndpoint>();
+        var controller = CreateController(db, publishEndpoint, "admin-1", Roles.Admin);
 
         var result = await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.InProgress));
 
@@ -259,5 +319,21 @@ public class TicketsControllerTests
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Equal("agent-42", Assert.IsType<TicketResponse>(ok.Value).AssignedAgentId);
+    }
+
+    [Fact]
+    public async Task AssignToSelf_SetsAssignedAgentIdToCaller_AsAdmin()
+    {
+        using var db = CreateDbContext();
+        var ticket = new Ticket { CustomerId = "customer-1", Title = "t", Description = "d" };
+        db.Tickets.Add(ticket);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, new Mock<IPublishEndpoint>(), "admin-42", Roles.Admin);
+
+        var result = await controller.AssignToSelf(ticket.Id);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal("admin-42", Assert.IsType<TicketResponse>(ok.Value).AssignedAgentId);
     }
 }

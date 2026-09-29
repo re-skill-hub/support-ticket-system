@@ -36,14 +36,20 @@ export const routes: Routes = [
   {
     path: 'agent/queue',
     canMatch: [authGuard, roleGuard],
-    data: { role: 'SupportAgent' },
+    data: { role: ['SupportAgent', 'Admin'] },
     loadComponent: () => import('../features/agent/ticket-queue/ticket-queue').then((m) => m.TicketQueue),
   },
   {
     path: 'dashboard',
     canMatch: [authGuard, roleGuard],
-    data: { role: 'SupportAgent' },
+    data: { role: ['SupportAgent', 'Admin'] },
     loadComponent: () => import('../features/dashboard/dashboard').then((m) => m.Dashboard),
+  },
+  {
+    path: 'admin/users',
+    canMatch: [authGuard, roleGuard],
+    data: { role: 'Admin' },
+    loadComponent: () => import('../features/admin/user-list/user-list').then((m) => m.UserList),
   },
   {
     path: 'notifications',
