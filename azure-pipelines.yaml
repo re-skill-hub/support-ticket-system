@@ -68,8 +68,49 @@ stages:
           - script: dotnet build SupportTicketing.slnx --no-restore --configuration Release
             displayName: Build .NET
 
-          - script: dotnet test SupportTicketing.slnx --no-build --configuration Release --logger "console;verbosity=normal"
+          - script: dotnet format SupportTicketing.slnx --verify-no-changes
+            displayName: Lint .NET (dotnet format)
+
+          - script: |
+              set -euo pipefail
+              dotnet test SupportTicketing.slnx --no-build --configuration Release \
+                --logger "trx" \
+                --collect:"XPlat Code Coverage" --settings coverlet.runsettings \
+                --results-directory "$(Agent.TempDirectory)/dotnet-test-results"
             displayName: Test .NET
+
+          - task: PublishTestResults@2
+            displayName: Publish .NET test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: VSTest
+              testResultsFiles: '$(Agent.TempDirectory)/dotnet-test-results/**/*.trx'
+
+          - script: |
+              set -euo pipefail
+              dotnet tool install -g dotnet-reportgenerator-globaltool
+              reportgenerator \
+                -reports:"$(Agent.TempDirectory)/dotnet-test-results/**/coverage.cobertura.xml" \
+                -targetdir:"$(Agent.TempDirectory)/dotnet-coverage-report" \
+                -reporttypes:"Cobertura;TextSummary"
+            displayName: Merge .NET coverage
+
+          - script: |
+              # coverlet's XPlat Code Coverage collector has no built-in threshold check
+              # (see coverlet.collector's own VSTestIntegration.md), so the merged
+              # reportgenerator summary is parsed here instead.
+              set -euo pipefail
+              summary="$(Agent.TempDirectory)/dotnet-coverage-report/Summary.txt"
+              coverage=$(grep -m1 "Line coverage:" "$summary" | grep -oE "[0-9]+(\.[0-9]+)?")
+              threshold=75
+              echo "Line coverage: ${coverage}% (threshold ${threshold}%)"
+              awk -v cov="$coverage" -v th="$threshold" 'BEGIN { exit !(cov + 0 >= th + 0) }'
+            displayName: Enforce .NET coverage threshold
+
+          - task: PublishCodeCoverageResults@2
+            displayName: Publish .NET code coverage
+            inputs:
+              summaryFileLocation: '$(Agent.TempDirectory)/dotnet-coverage-report/Cobertura.xml'
 
           - task: Cache@2
             displayName: Cache npm packages
@@ -84,11 +125,27 @@ stages:
             env:
               npm_config_cache: $(Pipeline.Workspace)/.npm
 
+          - script: npm run lint
+            displayName: Lint Angular
+            workingDirectory: client
+
           - script: npm test -- --watch=false
             displayName: Test Angular
             workingDirectory: client
             env:
               CI: true
+
+          - task: PublishTestResults@2
+            displayName: Publish Angular test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: 'client/test-results/junit.xml'
+
+          - task: PublishCodeCoverageResults@2
+            displayName: Publish Angular code coverage
+            inputs:
+              summaryFileLocation: 'client/coverage/client/cobertura-coverage.xml'
 
           - script: npm run build
             displayName: Build Angular
@@ -169,10 +226,13 @@ stages:
                         --from-literal=RABBITMQ_PASS="$RABBITMQ_PASS" \
                         --from-literal=JWT_SECRET="$JWT_SECRET" \
                         --from-literal=INITIAL_ADMIN_PASSWORD="$INITIAL_ADMIN_PASSWORD" \
+                        --from-literal=LOCAL_AGENT_PASSWORD="$LOCAL_AGENT_PASSWORD" \
                         --dry-run=client -o yaml | kubectl apply -f -
                       sed -i "s#__CLIENT_ENDPOINT__#$(clientEndpoint)#g" "$overlay/kustomization.yaml"
                       sed -i "s#__INITIAL_ADMIN_EMAIL__#$(initialAdminEmail)#g" "$overlay/kustomization.yaml"
                       sed -i "s#__INITIAL_ADMIN_FULL_NAME__#$(initialAdminFullName)#g" "$overlay/kustomization.yaml"
+                      sed -i "s#__LOCAL_AGENT_EMAIL__#$(localAgentEmail)#g" "$overlay/kustomization.yaml"
+                      sed -i "s#__LOCAL_AGENT_FULL_NAME__#$(localAgentFullName)#g" "$overlay/kustomization.yaml"
                       for d in ticket-service response-service notification-service; do
                         kubectl -n "$(kubernetesNamespace)" set env "deployment/$d" Cors__AllowedOrigin- 2>/dev/null || true
                       done
@@ -184,6 +244,7 @@ stages:
                     JWT_SECRET: $(JWT-SECRET)
                     K8S_CI_TOKEN: $(K8S-CI-TOKEN)
                     INITIAL_ADMIN_PASSWORD: $(INITIAL-ADMIN-PASSWORD)
+                    LOCAL_AGENT_PASSWORD: $(LOCAL-AGENT-PASSWORD)
 
                 - ${{ each svc in parameters.services }}:
                   - script: |
@@ -223,3 +284,45 @@ stages:
               test -n "$(clientEndpoint)"
               curl --fail --retry 5 --retry-delay 5 "$(clientEndpoint)/"
             displayName: Verify client endpoint
+
+  - stage: E2ETest
+    displayName: End-to-end test
+    dependsOn: SmokeTest
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - job: E2ETest
+        timeoutInMinutes: 15
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            displayName: Install Node.js
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            displayName: Install Angular dependencies
+            workingDirectory: client
+
+          - script: npx playwright install --with-deps chromium
+            displayName: Install Playwright browsers
+
+          - script: npx playwright test
+            displayName: Run e2e suite against dev environment
+            workingDirectory: client
+            env:
+              CI: true
+              E2E_BASE_URL: $(clientEndpoint)
+              LOCAL_AGENT_EMAIL: $(localAgentEmail)
+              LOCAL_AGENT_PASSWORD: $(LOCAL-AGENT-PASSWORD)
+              INITIAL_ADMIN_EMAIL: $(initialAdminEmail)
+              INITIAL_ADMIN_PASSWORD: $(INITIAL-ADMIN-PASSWORD)
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publish Playwright report on failure
+            condition: failed()
+            inputs:
+              targetPath: client/playwright-report
+              artifact: playwright-report

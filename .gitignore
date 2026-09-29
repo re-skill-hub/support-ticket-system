@@ -4,6 +4,7 @@ obj/
 *.user
 TestResults/
 coverage/
+coverage-report/
 
 ## Logs
 *.log

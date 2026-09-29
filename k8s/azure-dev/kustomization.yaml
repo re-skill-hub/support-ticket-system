@@ -19,6 +19,8 @@ configMapGenerator:
       - RABBITMQ_HOST=rabbitmq
       - INITIAL_ADMIN_EMAIL=__INITIAL_ADMIN_EMAIL__
       - INITIAL_ADMIN_FULL_NAME=__INITIAL_ADMIN_FULL_NAME__
+      - LOCAL_AGENT_EMAIL=__LOCAL_AGENT_EMAIL__
+      - LOCAL_AGENT_FULL_NAME=__LOCAL_AGENT_FULL_NAME__
 
 generatorOptions:
   disableNameSuffixHash: true
