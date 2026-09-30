@@ -9,7 +9,9 @@
     <div class="card summary-card">
       <div class="card-body">
         <h1 class="h5 mb-1">{{ t.title }}</h1>
-        <p class="text-secondary small mb-3">Created {{ t.createdAtUtc | date: 'medium' }}</p>
+        <p class="text-secondary small mb-3" [title]="t.createdAtUtc | date: 'medium'">
+          Created {{ t.createdAtUtc | relativeTime }}
+        </p>
 
         <p class="description">{{ t.description }}</p>
 
@@ -28,6 +30,18 @@
             @if (!t.assignedAgentId) {
               <button type="button" class="btn btn-outline-secondary btn-sm" (click)="assignToSelf()">Assign to me</button>
             }
+
+            <select
+              class="form-select form-select-sm assign-select"
+              aria-label="Assign to agent"
+              [value]="t.assignedAgentId ?? ''"
+              (change)="onAgentSelected($any($event.target).value)"
+            >
+              <option value="">Unassigned</option>
+              @for (agent of agents(); track agent.id) {
+                <option [value]="agent.id">{{ agent.fullName }}</option>
+              }
+            </select>
           }
         </div>
       </div>
@@ -45,7 +59,9 @@
         @for (response of responses(); track response.id) {
           <div class="card response-card" [class.agent]="isStaffRole(response.authorRole)">
             <div class="card-body py-2">
-              <p class="text-secondary small mb-1">{{ response.authorRole }} &middot; {{ response.createdAtUtc | date: 'short' }}</p>
+              <p class="text-secondary small mb-1" [title]="response.createdAtUtc | date: 'short'">
+                {{ authorLabel(response) }} &middot; {{ response.createdAtUtc | relativeTime }}
+              </p>
               <p class="mb-0">{{ response.message }}</p>
             </div>
           </div>
@@ -58,7 +74,18 @@
     <form class="reply-form" [formGroup]="replyForm" (ngSubmit)="sendReply()" novalidate>
       <div class="mb-3">
         <label for="message" class="form-label">Write a reply</label>
-        <textarea id="message" class="form-control" formControlName="message" rows="3"></textarea>
+        <textarea
+          id="message"
+          class="form-control"
+          formControlName="message"
+          rows="3"
+          [class.is-invalid]="replyForm.controls.message.invalid && replyForm.controls.message.touched"
+          [attr.aria-invalid]="replyForm.controls.message.invalid && replyForm.controls.message.touched"
+          [attr.aria-describedby]="replyForm.controls.message.invalid && replyForm.controls.message.touched ? 'message-error' : null"
+        ></textarea>
+        @if (replyForm.controls.message.invalid && replyForm.controls.message.touched) {
+          <div class="invalid-feedback" id="message-error">A reply message is required.</div>
+        }
       </div>
       <button type="submit" class="btn btn-primary" [disabled]="replyForm.invalid || sending()">
         @if (sending()) {

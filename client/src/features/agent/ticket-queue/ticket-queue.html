@@ -25,6 +25,43 @@
           <option [value]="priority">{{ priority }}</option>
         }
       </select>
+
+      <select
+        class="form-select form-select-sm filter"
+        aria-label="Category filter"
+        [value]="categoryFilter()"
+        (change)="onCategoryFilterChange($any($event.target).value)"
+      >
+        <option value="All">All categories</option>
+        @for (category of categories; track category) {
+          <option [value]="category">{{ category }}</option>
+        }
+      </select>
+
+      <input
+        type="text"
+        class="form-control form-control-sm filter"
+        placeholder="Customer ID"
+        aria-label="Filter by customer ID"
+        [value]="customerIdFilter()"
+        (change)="onCustomerIdFilterChange($any($event.target).value)"
+      />
+
+      <input
+        type="date"
+        class="form-control form-control-sm filter"
+        aria-label="From date"
+        [value]="fromDateFilter()"
+        (change)="onFromDateFilterChange($any($event.target).value)"
+      />
+
+      <input
+        type="date"
+        class="form-control form-control-sm filter"
+        aria-label="To date"
+        [value]="toDateFilter()"
+        (change)="onToDateFilterChange($any($event.target).value)"
+      />
     </div>
   </div>
 
@@ -81,7 +118,7 @@
             </tr>
           } @else {
             @for (ticket of pagedTickets(); track ticket.id) {
-              <tr>
+              <tr [class.aging-row]="isAging(ticket)">
                 <td>{{ ticket.title }}</td>
                 <td><app-priority-chip [priority]="ticket.priority" /></td>
                 <td>{{ ticket.category }}</td>
@@ -93,7 +130,12 @@
                     <span class="badge text-bg-secondary">Unassigned</span>
                   }
                 </td>
-                <td>{{ ticket.createdAtUtc | date: 'medium' }}</td>
+                <td [title]="ticket.createdAtUtc | date: 'medium'">
+                  {{ ticket.createdAtUtc | relativeTime }}
+                  @if (isAging(ticket)) {
+                    <i class="bi bi-exclamation-triangle-fill text-warning ms-1" title="Unassigned for over 24 hours"></i>
+                  }
+                </td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-primary" [routerLink]="['/tickets', ticket.id]">Open</a>
                 </td>

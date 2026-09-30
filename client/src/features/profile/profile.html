@@ -1,0 +1,18 @@
+<div class="app-page profile-page">
+  <div class="card">
+    <div class="card-body p-4">
+      <h1 class="h5 mb-4">My profile</h1>
+
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Full name</dt>
+        <dd class="col-sm-9">{{ authService.currentUser()?.fullName }}</dd>
+
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">{{ authService.currentUser()?.email }}</dd>
+
+        <dt class="col-sm-3">Role</dt>
+        <dd class="col-sm-9 mb-0">{{ authService.currentUser()?.role }}</dd>
+      </dl>
+    </div>
+  </div>
+</div>

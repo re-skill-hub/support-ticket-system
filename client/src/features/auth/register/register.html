@@ -16,9 +16,11 @@
             formControlName="fullName"
             autocomplete="name"
             [class.is-invalid]="form.controls.fullName.invalid && form.controls.fullName.touched"
+            [attr.aria-invalid]="form.controls.fullName.invalid && form.controls.fullName.touched"
+            [attr.aria-describedby]="form.controls.fullName.invalid && form.controls.fullName.touched ? 'fullName-error' : null"
           />
           @if (form.controls.fullName.invalid && form.controls.fullName.touched) {
-            <div class="invalid-feedback">Full name is required.</div>
+            <div class="invalid-feedback" id="fullName-error">Full name is required.</div>
           }
         </div>
 
@@ -31,9 +33,11 @@
             formControlName="email"
             autocomplete="email"
             [class.is-invalid]="form.controls.email.invalid && form.controls.email.touched"
+            [attr.aria-invalid]="form.controls.email.invalid && form.controls.email.touched"
+            [attr.aria-describedby]="form.controls.email.invalid && form.controls.email.touched ? 'email-error' : null"
           />
           @if (form.controls.email.invalid && form.controls.email.touched) {
-            <div class="invalid-feedback">Enter a valid email address.</div>
+            <div class="invalid-feedback" id="email-error">Enter a valid email address.</div>
           }
         </div>
 
@@ -46,11 +50,13 @@
             formControlName="password"
             autocomplete="new-password"
             [class.is-invalid]="form.controls.password.invalid && form.controls.password.touched"
+            [attr.aria-invalid]="form.controls.password.invalid && form.controls.password.touched"
+            [attr.aria-describedby]="form.controls.password.invalid && form.controls.password.touched ? 'password-error' : 'password-hint'"
           />
           @if (form.controls.password.invalid && form.controls.password.touched) {
-            <div class="invalid-feedback">Password must be at least 8 characters.</div>
+            <div class="invalid-feedback" id="password-error">Password must be at least 8 characters.</div>
           } @else {
-            <div class="form-text">At least 8 characters</div>
+            <div class="form-text" id="password-hint">At least 8 characters</div>
           }
         </div>
 

@@ -26,3 +26,12 @@ export interface CreateTicketRequest {
 export interface UpdateTicketStatusRequest {
   status: TicketStatus;
 }
+
+export interface AssignTicketRequest {
+  agentId: string | null;
+}
+
+export interface StaffSummary {
+  id: string;
+  fullName: string;
+}

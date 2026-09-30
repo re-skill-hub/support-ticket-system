@@ -11,9 +11,11 @@
             class="form-control"
             formControlName="title"
             [class.is-invalid]="form.controls.title.invalid && form.controls.title.touched"
+            [attr.aria-invalid]="form.controls.title.invalid && form.controls.title.touched"
+            [attr.aria-describedby]="form.controls.title.invalid && form.controls.title.touched ? 'title-error' : null"
           />
           @if (form.controls.title.invalid && form.controls.title.touched) {
-            <div class="invalid-feedback">Title is required.</div>
+            <div class="invalid-feedback" id="title-error">Title is required.</div>
           }
         </div>
 
@@ -25,9 +27,11 @@
             formControlName="description"
             rows="6"
             [class.is-invalid]="form.controls.description.invalid && form.controls.description.touched"
+            [attr.aria-invalid]="form.controls.description.invalid && form.controls.description.touched"
+            [attr.aria-describedby]="form.controls.description.invalid && form.controls.description.touched ? 'description-error' : null"
           ></textarea>
           @if (form.controls.description.invalid && form.controls.description.touched) {
-            <div class="invalid-feedback">Description is required.</div>
+            <div class="invalid-feedback" id="description-error">Description is required.</div>
           }
         </div>
 

@@ -4,6 +4,7 @@ using Contracts.Events;
 using Contracts.Observability;
 using MassTransit;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TicketService.Data;
@@ -15,7 +16,7 @@ namespace TicketService.Controllers;
 [ApiController]
 [Route("api/tickets")]
 [Authorize]
-public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint) : ControllerBase
+public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint, UserManager<ApplicationUser> userManager) : ControllerBase
 {
     [HttpPost]
     [Authorize(Roles = Roles.Customer)]
@@ -59,7 +60,13 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
 
     [HttpGet]
     [Authorize(Roles = Roles.StaffRoles)]
-    public async Task<ActionResult<IEnumerable<TicketResponse>>> GetAll([FromQuery] TicketStatus? status, [FromQuery] TicketPriority? priority)
+    public async Task<ActionResult<IEnumerable<TicketResponse>>> GetAll(
+        [FromQuery] TicketStatus? status,
+        [FromQuery] TicketPriority? priority,
+        [FromQuery] TicketCategory? category = null,
+        [FromQuery] string? customerId = null,
+        [FromQuery] DateTime? fromUtc = null,
+        [FromQuery] DateTime? toUtc = null)
     {
         var query = db.Tickets.AsQueryable();
         if (status is not null)
@@ -72,8 +79,45 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
             query = query.Where(t => t.Priority == priority);
         }
 
+        if (category is not null)
+        {
+            query = query.Where(t => t.Category == category);
+        }
+
+        if (!string.IsNullOrWhiteSpace(customerId))
+        {
+            query = query.Where(t => t.CustomerId == customerId);
+        }
+
+        if (fromUtc is not null)
+        {
+            query = query.Where(t => t.CreatedAtUtc >= fromUtc);
+        }
+
+        if (toUtc is not null)
+        {
+            query = query.Where(t => t.CreatedAtUtc <= toUtc);
+        }
+
         var tickets = await query.OrderByDescending(t => t.CreatedAtUtc).ToListAsync();
         return Ok(tickets.Select(TicketResponse.FromEntity));
+    }
+
+    [HttpGet("agents")]
+    [Authorize(Roles = Roles.StaffRoles)]
+    public async Task<ActionResult<IEnumerable<StaffSummaryDto>>> GetAgents()
+    {
+        // Staff-only, name-only lookup for the assignment picker — UsersController's full
+        // roster (email, active status, role management) stays Admin-only.
+        var agents = await userManager.GetUsersInRoleAsync(Roles.SupportAgent);
+        var admins = await userManager.GetUsersInRoleAsync(Roles.Admin);
+
+        var staff = agents.Concat(admins)
+            .DistinctBy(u => u.Id)
+            .OrderBy(u => u.FullName)
+            .Select(u => new StaffSummaryDto(u.Id, u.FullName));
+
+        return Ok(staff);
     }
 
     [HttpGet("{id:guid}")]
@@ -132,7 +176,7 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
 
     [HttpPatch("{id:guid}/assign")]
     [Authorize(Roles = Roles.StaffRoles)]
-    public async Task<ActionResult<TicketResponse>> AssignToSelf(Guid id)
+    public async Task<ActionResult<TicketResponse>> Assign(Guid id, [FromBody] AssignTicketRequest? request = null)
     {
         var ticket = await db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
         if (ticket is null)
@@ -140,7 +184,27 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
             return NotFound();
         }
 
-        ticket.AssignedAgentId = User.GetUserId();
+        // No body at all preserves the original "assign to me" shortcut; a body with
+        // AgentId set targets another agent, and AgentId: null unassigns the ticket.
+        if (request is null)
+        {
+            ticket.AssignedAgentId = User.GetUserId();
+        }
+        else if (request.AgentId is null)
+        {
+            ticket.AssignedAgentId = null;
+        }
+        else
+        {
+            var agent = await userManager.FindByIdAsync(request.AgentId);
+            if (agent is null || !await userManager.IsInRoleAsync(agent, Roles.SupportAgent) && !await userManager.IsInRoleAsync(agent, Roles.Admin))
+            {
+                return BadRequest(new[] { "Ticket can only be assigned to a support agent or admin." });
+            }
+
+            ticket.AssignedAgentId = agent.Id;
+        }
+
         ticket.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
 

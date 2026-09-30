@@ -11,6 +11,10 @@ public record CreateTicketRequest(
 
 public record UpdateTicketStatusRequest(TicketStatus Status);
 
+public record AssignTicketRequest(string? AgentId);
+
+public record StaffSummaryDto(string Id, string FullName);
+
 public record TicketResponse(
     Guid Id,
     string Title,

@@ -61,7 +61,7 @@
                 <td><app-priority-chip [priority]="ticket.priority" /></td>
                 <td>{{ ticket.category }}</td>
                 <td><app-status-chip [status]="ticket.status" /></td>
-                <td>{{ ticket.createdAtUtc | date: 'medium' }}</td>
+                <td [title]="ticket.createdAtUtc | date: 'medium'">{{ ticket.createdAtUtc | relativeTime }}</td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-primary" [routerLink]="['/tickets', ticket.id]">View</a>
                 </td>

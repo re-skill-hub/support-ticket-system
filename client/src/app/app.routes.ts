@@ -12,6 +12,20 @@ export const routes: Routes = [
     loadComponent: () => import('../features/auth/register/register').then((m) => m.Register),
   },
   {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('../features/auth/forgot-password/forgot-password').then((m) => m.ForgotPassword),
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('../features/auth/reset-password/reset-password').then((m) => m.ResetPassword),
+  },
+  {
+    path: 'profile',
+    canMatch: [authGuard],
+    loadComponent: () => import('../features/profile/profile').then((m) => m.Profile),
+  },
+  {
     path: '',
     canMatch: [authGuard],
     loadComponent: () => import('../features/home/home').then((m) => m.Home),
