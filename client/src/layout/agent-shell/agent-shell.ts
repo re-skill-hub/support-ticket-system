@@ -4,12 +4,13 @@ import { interval, startWith } from 'rxjs';
 import { NgbCollapse } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { NotificationBell } from '../../shared/notification-bell/notification-bell';
 
 const UNREAD_POLL_INTERVAL_MS = 30_000;
 
 @Component({
   selector: 'app-agent-shell',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, NgbCollapse],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, NgbCollapse, NotificationBell],
   templateUrl: './agent-shell.html',
   styleUrl: './agent-shell.scss',
 })

@@ -27,14 +27,7 @@
 
         <ul class="navbar-nav align-items-lg-center">
           <li class="nav-item">
-            <a class="nav-link position-relative" routerLink="/notifications" routerLinkActive="active">
-              <i class="bi bi-bell"></i>
-              @if (notificationService.unreadCount() > 0) {
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">
-                  {{ notificationService.unreadCount() }}
-                </span>
-              }
-            </a>
+            <app-notification-bell />
           </li>
           <li class="nav-item">
             <a class="nav-link" routerLink="/profile" routerLinkActive="active">{{ authService.currentUser()?.fullName }}</a>

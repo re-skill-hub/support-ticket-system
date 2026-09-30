@@ -60,6 +60,40 @@
           }
         },
         {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/auth/forgot-password",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["auth", "forgot-password"]
+            },
+            "description": "Always returns 200 whether or not the email matches an account. If it matches, a reset link is emailed via Mailpit — open http://localhost:8025, find the message, and copy the `token` query param from the reset link into the {{resetToken}} environment variable before running Reset Password."
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{customerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/auth/reset-password",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["auth", "reset-password"]
+            },
+            "description": "{{resetToken}} must be copied from the Mailpit email (see Forgot Password) — it's not returned by any API response."
+          }
+        },
+        {
           "name": "Me",
           "request": {
             "method": "GET",
@@ -148,6 +182,55 @@
           }
         },
         {
+          "name": "Get All Tickets (Agent, full filter set)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets?status=Open&priority=High&category=Technical&customerId={{customerId}}&fromUtc=2026-01-01T00:00:00Z&toUtc=2026-12-31T23:59:59Z",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets"],
+              "query": [
+                { "key": "status", "value": "Open", "description": "Optional: Open | InProgress | Closed" },
+                { "key": "priority", "value": "High", "description": "Optional: Low | Medium | High | Urgent" },
+                { "key": "category", "value": "Technical", "description": "Optional: General | Technical | Billing | Account" },
+                { "key": "customerId", "value": "{{customerId}}", "description": "Optional: restrict to one customer's tickets" },
+                { "key": "fromUtc", "value": "2026-01-01T00:00:00Z", "description": "Optional: CreatedAtUtc lower bound (inclusive)" },
+                { "key": "toUtc", "value": "2026-12-31T23:59:59Z", "description": "Optional: CreatedAtUtc upper bound (inclusive)" }
+              ]
+            },
+            "description": "All query params are optional and combine as AND filters. Remove any you don't need."
+          }
+        },
+        {
+          "name": "Get Support Staff (for assignment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    if (Array.isArray(body) && body.length > 0) {",
+                  "        pm.environment.set('agentId', body[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets/agents",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets", "agents"]
+            },
+            "description": "Staff-only name lookup (SupportAgent + Admin) for the assignment picker. Sets {{agentId}} from the first result, if any."
+          }
+        },
+        {
           "name": "Get Ticket By Id",
           "request": {
             "method": "GET",
@@ -184,7 +267,42 @@
               "raw": "{{ticketApiUrl}}/tickets/{{ticketId}}/assign",
               "host": ["{{ticketApiUrl}}"],
               "path": ["tickets", "{{ticketId}}", "assign"]
-            }
+            },
+            "description": "No body: assigns the ticket to the currently logged-in agent."
+          }
+        },
+        {
+          "name": "Assign Ticket To Agent (explicit agentId)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": \"{{agentId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets/{{ticketId}}/assign",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "assign"]
+            },
+            "description": "Targets another SupportAgent or Admin. Run Get Support Staff first to populate {{agentId}}, or set it manually."
+          }
+        },
+        {
+          "name": "Unassign Ticket",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": null\n}"
+            },
+            "url": {
+              "raw": "{{ticketApiUrl}}/tickets/{{ticketId}}/assign",
+              "host": ["{{ticketApiUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "assign"]
+            },
+            "description": "An explicit null agentId clears the assignment."
           }
         }
       ]

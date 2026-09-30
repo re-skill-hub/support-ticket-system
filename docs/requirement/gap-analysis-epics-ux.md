@@ -32,8 +32,8 @@ Most of Epics 1–2 (auth, ticket CRUD, RBAC) and 5–8 (EF Core, NFRs, testing,
 | "You" / "Support" comment labeling instead of the raw role string | **Implemented.** | `ticket-detail.ts` gained `authorLabel(response)`, comparing `response.authorUserId` against `authService.currentUser()?.id` first (→ "You"), then falling back to `isStaffRole(response.authorRole)` (→ "Support" or "Customer"). |
 | Aging/unassigned/high-priority visual emphasis in the agent queue | **Implemented, partially.** | `ticket-queue.ts` gained `isAging(ticket)` (unassigned, not closed, older than 24h) which highlights the row (`.aging-row`) and shows a warning icon on the age cell. High-priority emphasis was not added separately — the existing `PriorityChip` component already visually distinguishes `Urgent`/`High` in its own column, so a second highlight mechanism was judged redundant rather than additive. |
 | Success toasts for status-change/assign/reply | **Implemented.** | The existing `ToastService` (previously wired for errors only, via the global interceptor) now also fires on successful status changes, self-assign, reassign/unassign, and sent replies in `ticket-detail.ts`. |
-| Notification bell dropdown preview | **Deferred.** | The UX doc calls for a preview dropdown off the nav bell (reusing the already-polled unread-count state) rather than requiring a full navigation to `/notifications` to see anything. Not built this pass — the full-page `notification-list` view remains the only way to read notifications. Worth a follow-up: `NgbDropdown` on the existing bell icon in `nav.html`/`agent-shell.html`, backed by the same polled list `notification-list.ts` already maintains, no new endpoint required. |
-| Ticket/response list pagination (`GetAll`/`GetMine`, `GetByTicket`) | **Deferred.** | `TicketsController.GetAll` was already touched in this pass for the Tier 1 filter work, which was the natural point to fold in the existing `PagedResult<T>` pattern from `UsersController` — not done, to keep that change scoped to filtering rather than also changing the response shape every existing caller (`ticket-list.ts`, `ticket-queue.ts`, their specs) depends on. Both `ticket-list.ts` and `ticket-queue.ts` currently do client-side pagination over an unpaginated full result set, which is fine at current data volumes but won't scale indefinitely. |
+| Notification bell dropdown preview | **Implemented.** | New shared `client/src/shared/notification-bell/` component: an `NgbDropdown` on the existing bell icon, lazily fetching a preview (latest 5) via the existing `NotificationService.getMine()` only when opened (`container="body"` so the sidebar's `overflow-y: auto` doesn't clip it), with inline "mark as read" per item and a "View all" link to `/notifications`. Wired into both `nav.html` and `agent-shell.html` (desktop + mobile), replacing the previously duplicated bell markup in each. No new endpoint required. |
+| Ticket/response list pagination (`GetAll`/`GetMine`, `GetByTicket`) | **Descoped.** | `TicketsController.GetAll`/`GetMine` already support rich filtering (Tier 1); adding `PagedResult<T>` there would only be safe if `ticket-list.ts`'s client-side title search and `ticket-queue.ts`'s client-side column sort also moved server-side — otherwise search/sort would silently only see one page instead of the full result set, a real UX regression disguised as a scalability improvement. That's a substantially larger, riskier change (new query params, reshaping both components' state, rewriting their specs) than the current data volumes justify. Left as client-side pagination over the full filtered result set; revisit if ticket counts grow large enough for this to matter in practice. |
 
 ## Tier 3 — explicitly descoped (with rationale)
 
@@ -46,11 +46,12 @@ Most of Epics 1–2 (auth, ticket CRUD, RBAC) and 5–8 (EF Core, NFRs, testing,
 ## Verification status
 
 - **Backend:** `dotnet test services/TicketService.Tests/TicketService.Tests.csproj` passes (72/72) with the new `GetAgents`/forgot-password/reset-password/filter coverage included.
-- **Frontend:** `ng test` (Vitest) passes (120/120) across all new and changed components/services, including the new `relative-time.pipe.spec.ts` and the extended `ticket-detail.spec.ts`/`ticket-queue.spec.ts`/`ticket.service.spec.ts`.
+- **Frontend:** `ng test` (Vitest) passes (127/127) across all new and changed components/services, including the new `relative-time.pipe.spec.ts`, `notification-bell.spec.ts`, and the extended `ticket-detail.spec.ts`/`ticket-queue.spec.ts`/`ticket.service.spec.ts`.
+- **Postman collection** (`docs/postman/`) extended with requests for `forgot-password`, `reset-password` (with a note on pulling the reset token from Mailpit), the full `GetAll` filter set, `GET /api/tickets/agents`, and `assign`/unassign with an explicit `agentId`.
 - **Not verified in this pass (no browser tooling available in this environment):**
   - Manual walkthrough of forgot-password → Mailpit (`localhost:8025`) → reset link → login.
-  - Manual walkthrough of the profile page as each role, agent-queue filters, assign-to-other-agent as Admin and SupportAgent, and keyboard-only navigation through the sortable table header.
-  - Postman collection (`docs/postman/`) has not yet been extended with requests for `forgot-password`, `reset-password`, the new `GetAll` filter params, `assign` with an explicit `agentId`, or `GET /api/tickets/agents`.
+  - Manual walkthrough of the profile page as each role, agent-queue filters, assign-to-other-agent as Admin and SupportAgent, the notification bell dropdown, and keyboard-only navigation through the sortable table header.
+  - Actually running the extended Postman collection against a live stack.
 
   These remain open follow-ups — the automated test suites above cover logic correctness, but not the actual browser/email/Postman round-trip.
 
@@ -58,4 +59,4 @@ Most of Epics 1–2 (auth, ticket CRUD, RBAC) and 5–8 (EF Core, NFRs, testing,
 
 - `docs/requirement/gap-analysis.md` — the design-doc-vs-implementation analysis this document runs alongside, not against.
 - Root `README.md`'s "Scope notes" section.
-- `docs/postman/README.md` — how to run the Postman collection against a live stack (pending the extension noted above).
+- `docs/postman/README.md` — how to run the Postman collection against a live stack.

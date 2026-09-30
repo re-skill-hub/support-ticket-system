@@ -15,12 +15,7 @@
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link text-white" routerLink="/notifications" routerLinkActive="active">
-          <i class="bi bi-bell me-2"></i>Notifications
-          @if (notificationService.unreadCount() > 0) {
-            <span class="badge rounded-pill text-bg-danger ms-2">{{ notificationService.unreadCount() }}</span>
-          }
-        </a>
+        <app-notification-bell toggleClass="nav-link text-white position-relative d-flex align-items-center w-100" label="Notifications" />
       </li>
       @if (authService.isAdmin()) {
         <li class="nav-item">
@@ -60,12 +55,7 @@
           <a class="nav-link text-white" routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link text-white" routerLink="/notifications" routerLinkActive="active">
-            Notifications
-            @if (notificationService.unreadCount() > 0) {
-              <span class="badge rounded-pill text-bg-danger ms-2">{{ notificationService.unreadCount() }}</span>
-            }
-          </a>
+          <app-notification-bell toggleClass="nav-link text-white position-relative d-flex align-items-center w-100" label="Notifications" />
         </li>
         @if (authService.isAdmin()) {
           <li class="nav-item">
