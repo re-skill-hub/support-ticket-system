@@ -23,7 +23,9 @@
             ></i>
             <div class="flex-grow-1">
               <div>{{ notification.message }}</div>
-              <div class="text-secondary small">{{ notification.createdAtUtc | date: 'short' }}</div>
+              <div class="text-secondary small" [title]="notification.createdAtUtc | date: 'short'">
+                {{ notification.createdAtUtc | relativeTime }}
+              </div>
               <div class="actions mt-2">
                 <a class="btn btn-sm btn-outline-primary" [routerLink]="['/tickets', notification.ticketId]">View ticket</a>
                 @if (!notification.readAtUtc) {

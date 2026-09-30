@@ -5,12 +5,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, catchError, interval, startWith, switchMap } from 'rxjs';
 import { NotificationService } from '../../../core/services/notification.service';
 import { Notification } from '../../../types/notification.types';
+import { RelativeTimePipe } from '../../../shared/relative-time/relative-time.pipe';
 
 const REFRESH_INTERVAL_MS = 10_000;
 
 @Component({
   selector: 'app-notification-list',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RelativeTimePipe, RouterLink],
   templateUrl: './notification-list.html',
   styleUrl: './notification-list.scss',
 })

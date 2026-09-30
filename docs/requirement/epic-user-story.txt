@@ -1,0 +1,374 @@
+Below is a structured backlog for the “Customer Support Ticketing System,” organized into Epics and User Stories with Acceptance Criteria.
+
+---
+
+## Epic 1: User Management & Authentication [1]
+
+### User Story 1.1: User Registration (Customer)
+**As a** prospective customer  
+**I want** to register for an account  
+**So that** I can create and track support tickets.
+
+**Acceptance Criteria**
+- Given I provide valid Name, Email, and Password, when I submit the registration form, then my account is created and I see a confirmation message.
+- Given I try to register with an email that already exists, when I submit the form, then I receive a meaningful error message and the account is not created.
+- Given registration is successful, when I try to log in with the same credentials, then I can authenticate successfully.
+
+---
+
+### User Story 1.2: User Authentication (JWT Login) [1]
+**As a** user (Customer or Support Staff)  
+**I want** to log in securely  
+**So that** I can access my authorized features.
+
+**Acceptance Criteria**
+- Given I provide valid credentials, when I send a POST request to `/users/authenticate`, then I receive a JWT token that encodes my user id and role. [1]
+- Given I provide invalid credentials, when I attempt to authenticate, then I receive HTTP 401 Unauthorized with an error message and no token.
+- Given I have a valid JWT, when I call any protected API endpoint, then the request is authorized according to my role; otherwise I receive HTTP 401 or 403.
+- The token is signed and cannot be tampered with (invalid signature leads to unauthorized).
+
+---
+
+### User Story 1.3: Role-Based Access Control (RBAC) [1]
+**As a** system administrator (role designer)  
+**I want** customers and support staff to have different permissions  
+**So that** each user can only perform actions relevant to their role.
+
+**Acceptance Criteria**
+- Given a user has the role “Customer”, when they access ticket APIs, then they can create tickets, list their own tickets, view details of their own tickets, and add comments to their own tickets only. [1]
+- Given a user has the role “Customer”, when they attempt to update ticket status or access tickets created by others, then they receive HTTP 403 Forbidden.
+- Given a user has the role “Support”, when they access ticket APIs, then they can view all tickets, update status, and add comments on any ticket. [1]
+- Given a user has no valid JWT, when they access protected APIs, then they receive HTTP 401 Unauthorized.
+
+---
+
+### User Story 1.4: View User Profile
+**As a** user  
+**I want** to view my profile information  
+**So that** I can verify my stored details.
+
+**Acceptance Criteria**
+- Given I am authenticated, when I call `GET /users/{id}`, then I receive my `UserId`, `Name`, `Role`, and `Email`. [1]
+- Given I am authenticated as a different user, when I try to access another user’s profile via `/users/{otherId}`, then I receive HTTP 403 (unless my role is Support and such access is explicitly allowed).
+- Given I am not authenticated, when I call `GET /users/{id}`, then I receive HTTP 401 Unauthorized.
+
+---
+
+## Epic 2: Ticket Creation & Management [1]
+
+### User Story 2.1: Create Support Ticket
+**As a** customer  
+**I want** to create a support ticket  
+**So that** I can request help for an issue.
+
+**Acceptance Criteria**
+- Given I am authenticated as a Customer, when I send a POST request to `/tickets` with Title and Description (and optional priority/category if implemented), then a new ticket is created with:
+  - A unique `TicketId`
+  - My `UserId` as the owner
+  - Status = `Open`
+  - `CreatedAt` and `UpdatedAt` timestamps set to the current time. [1]
+- Given required fields are missing or invalid, when I submit the ticket, then I receive HTTP 400 with validation messages and the ticket is not created.
+- Given the ticket is created, when I retrieve my ticket list, then the newly created ticket appears.
+
+---
+
+### User Story 2.2: View My Tickets (Customer)
+**As a** customer  
+**I want** to see a list of my tickets  
+**So that** I can track their progress.
+
+**Acceptance Criteria**
+- Given I am authenticated as a Customer, when I view my ticket list (e.g., `GET /tickets?mine=true` or equivalent), then I see all tickets where `UserId` equals my id, including `TicketId`, `Title`, `Status`, `CreatedAt`, and `UpdatedAt`. [1]
+- Given I have no tickets, when I open my ticket list, then I see an empty list or a “no tickets found” message.
+- The list is ordered by `CreatedAt` or `UpdatedAt` (order to be defined) in a consistent way.
+
+---
+
+### User Story 2.3: View Ticket Details
+**As a** user (Customer or Support staff)  
+**I want** to view a ticket’s detailed information  
+**So that** I can understand the issue fully.
+
+**Acceptance Criteria**
+- Given I have permission to view the ticket, when I open the ticket details (e.g., `GET /tickets/{id}`), then I see:
+  - TicketId, UserId, Title, Description, Status, CreatedAt, UpdatedAt
+  - Associated comments list (if any) [1]
+- Given I am a Customer and the ticket does not belong to me, when I try to view it, then I receive HTTP 403 Forbidden.
+- Given the ticket does not exist, when I request its details, then I receive HTTP 404 Not Found.
+
+---
+
+### User Story 2.4: Ticket Status Update (Support Staff) [1]
+**As a** support staff member  
+**I want** to update the status of a ticket  
+**So that** I can reflect its progress (Open, In Progress, Resolved).
+
+**Acceptance Criteria**
+- Given I am authenticated as Support, when I send `PUT /tickets/{id}/status` with a valid new status (`Open`, `In Progress`, `Resolved`), then the ticket’s `Status` and `UpdatedAt` are updated. [1]
+- Given I provide an invalid status value, then the API rejects it with HTTP 400 and a validation error.
+- Given I am a Customer, when I attempt to call `/tickets/{id}/status`, then I receive HTTP 403 Forbidden.
+- Given the ticket does not exist, when I attempt to update its status, then I receive HTTP 404 Not Found.
+
+---
+
+### User Story 2.5: Add Comment to Ticket
+**As a** user (Customer or Support staff)  
+**I want** to add comments to a ticket  
+**So that** I can communicate details and updates.
+
+**Acceptance Criteria**
+- Given I have access to view the ticket, when I send `PUT /tickets/{id}/comment` with a valid comment body, then:
+  - A new Comment entry is added to the ticket’s `Comments` list. [1]
+  - The ticket’s `UpdatedAt` is updated. [1]
+- Given the comment text is empty or invalid, when I submit it, then I receive HTTP 400 with validation messages.
+- Given I am a Customer, when I comment on another customer’s ticket that I’m not authorized to see, then I receive HTTP 403.
+- Given the ticket does not exist, when I add a comment, then I receive HTTP 404 Not Found.
+
+---
+
+## Epic 3: Frontend – Customer Portal (Angular/React) [1]
+
+### User Story 3.1: Customer Ticket List UI
+**As a** customer  
+**I want** a ticket list page  
+**So that** I can easily see my tickets in the web interface.
+
+**Acceptance Criteria**
+- The frontend provides a component (e.g., `ticket-list` in Angular or a `ticket` feature folder in React) that:
+  - Calls the backend to retrieve tickets for the current user. [1]
+  - Displays key fields: Title, Status, CreatedAt/UpdatedAt.
+- Given I am not logged in, when I try to access the ticket list page, then I am redirected to the login page.
+- The list visually indicates ticket status (e.g., color or badge).
+- The list supports clickable rows or a link to open the ticket details page.
+
+---
+
+### User Story 3.2: Customer Ticket Creation UI
+**As a** customer  
+**I want** a ticket creation form  
+**So that** I can submit new issues from the web UI.
+
+**Acceptance Criteria**
+- The frontend exposes a component (e.g., `ticket-create`) that shows input fields for Title and Description (and optional priority/category if used). [1]
+- Given I fill in all required fields and click “Submit”, then a POST is made to `/tickets` and, on success, I see a success message and can navigate back to the ticket list or details.
+- Given any required field is missing or invalid, when I click “Submit”, then field-level validation messages are displayed and no API call is sent or the API errors are shown.
+- The form is responsive using Bootstrap (works on desktop and mobile). [1]
+
+---
+
+### User Story 3.3: Ticket Details & Comments UI
+**As a** user  
+**I want** to see full ticket details and comments  
+**So that** I can follow the conversation and context.
+
+**Acceptance Criteria**
+- There is a `ticket-details` component/page that:
+  - Loads ticket details from `/tickets/{id}`. [1]
+  - Displays the ticket fields and the comments thread.
+- Given I have permission, when I type a new comment and click “Add Comment”, then the comment is sent to `/tickets/{id}/comment` and appears in the list without full page reload (or after reload).
+- Given the ticket is missing (404), when I open the details page, then I see an appropriate “Ticket not found” message.
+
+---
+
+### User Story 3.4: Layout & Navigation
+**As a** user  
+**I want** consistent navigation (header, footer, layout)  
+**So that** I can easily move between pages.
+
+**Acceptance Criteria**
+- The frontend uses a layout structure (e.g., `layout` folder with `Header`, `Footer`) and shared components in `common` (buttons, inputs) as described in the design. [1]
+- The header includes links to:
+  - Home/Dashboard
+  - My Tickets
+  - Create Ticket
+  - Logout (when authenticated)
+- The layout is responsive via Bootstrap and works on common screen sizes. [1]
+
+---
+
+## Epic 4: Frontend – Support Portal [1]
+
+### User Story 4.1: Support Ticket List (All Tickets)
+**As a** support staff member  
+**I want** to see all tickets  
+**So that** I can triage and manage them.
+
+**Acceptance Criteria**
+- Given I am logged in as Support, when I access the support ticket list page, then I see all tickets, not just my own. [1]
+- The list includes filters by status (Open, In Progress, Resolved) and optionally by date or customer.
+- Given I am a Customer, when I try to access the support ticket list route, then I am redirected or see an authorization error.
+
+---
+
+### User Story 4.2: Update Status from UI
+**As a** support staff member  
+**I want** to update ticket status directly from the UI  
+**So that** I can quickly manage ticket workflow.
+
+**Acceptance Criteria**
+- The ticket details or list provides controls (e.g., dropdown or buttons) to change status to Open, In Progress, or Resolved. [1]
+- Given I change the status and confirm, when the update succeeds, then the new status is immediately reflected in the UI and `UpdatedAt` is refreshed when re-fetched.
+- Given the API returns an error (e.g., 400, 403, 404), then an error message is displayed and the previously displayed status is preserved.
+
+---
+
+## Epic 5: Backend API & Database Design [1]
+
+### User Story 5.1: Ticket Persistence in SQL Server
+**As a** developer  
+**I want** tickets stored in SQL Server using EF Core  
+**So that** data is persisted reliably.
+
+**Acceptance Criteria**
+- There is a `Ticket` table with columns: `TicketId`, `UserId`, `Title`, `Description`, `Status`, `CreatedAt`, `UpdatedAt`. [1]
+- There is a `User` table with columns: `UserId`, `Name`, `Role`, `Email`. [1]
+- The EF Core code-first model classes correspond to these tables, and migrations are used to create/update the schema. [1]
+- Given a ticket is created through the API, when I query the database, then the corresponding row exists with correct values.
+
+---
+
+### User Story 5.2: EF Core Migrations & Code-First [1]
+**As a** developer  
+**I want** to manage database changes via EF Core migrations  
+**So that** schema evolution is tracked.
+
+**Acceptance Criteria**
+- The project uses EF Core migrations for schema changes (`Add-Migration`, `Update-Database`). [1]
+- Given a new property is added to a model, when a migration is generated and applied, then the database schema is updated accordingly without data loss (where possible).
+- Migration history is stored (e.g., in `__EFMigrationsHistory` table) and can be rolled back if needed.
+
+---
+
+### User Story 5.3: RESTful Ticket API (ASP.NET Core 8) [1]
+**As a** client application  
+**I want** a RESTful API for tickets  
+**So that** the frontend can manage tickets consistently.
+
+**Acceptance Criteria**
+- The backend provides endpoints:
+  - `GET /tickets` – list tickets (with role-based filtering).  
+  - `POST /tickets` – create a new ticket. [1]  
+  - `PUT /tickets/{id}/status` – update ticket status. [1]  
+  - `PUT /tickets/{id}/comment` – add a comment. [1]
+- API adheres to HTTP semantics: 200 for success, 201 for create, 400 for validation errors, 401/403 for auth issues, 404 for missing resources.
+- All protected endpoints require valid JWT authentication. [1]
+
+---
+
+## Epic 6: Non-Functional Requirements (Scalability, Security, Performance, Reliability) [1]
+
+### User Story 6.1: Security – JWT & RBAC Enforcement
+(Overlaps with Epic 1; here focused on NFR verification)
+
+**As a** security-conscious stakeholder  
+**I want** JWT authentication and RBAC fully enforced  
+**So that** data is protected from unauthorized access.
+
+**Acceptance Criteria**
+- All ticket-related endpoints require a valid JWT; unauthenticated requests receive 401. [1]
+- Role checks are implemented at controller or middleware level; unauthorized role usage returns 403. [1]
+- Tokens are configured with reasonable expiration; expired tokens are rejected.
+
+---
+
+### User Story 6.2: Performance – 100 Concurrent Users [1]
+**As a** product owner  
+**I want** the system to handle at least 100 concurrent users  
+**So that** it performs well under normal load.
+
+**Acceptance Criteria**
+- Load tests show that with 100 concurrent virtual users performing typical operations (login, list tickets, create tickets, update status), average API response time stays within an agreed threshold (e.g., < 1 second for 95th percentile) under the target environment.
+- No error spikes (5xx) occur under the 100-user load test. [1]
+
+---
+
+### User Story 6.3: Reliability & High Availability (Docker + Kubernetes) [1]
+**As a** DevOps engineer  
+**I want** the application deployed via Docker and Kubernetes  
+**So that** we achieve high availability.
+
+**Acceptance Criteria**
+- The backend and frontend are both containerized with Docker and able to run locally via `docker run` or `docker-compose`. [1]
+- Kubernetes manifests (or Helm charts) define:
+  - Deployments with multiple replicas for backend and frontend
+  - Services for stable networking
+- Given one pod instance fails, when Kubernetes reschedules it, then service remains available (other replicas continue to serve). [1]
+
+---
+
+## Epic 7: Testing & Quality Assurance [1]
+
+### User Story 7.1: Backend Unit Tests with xUnit
+**As a** developer  
+**I want** unit tests for backend services and repositories  
+**So that** I can verify business logic.
+
+**Acceptance Criteria**
+- xUnit test projects are created for backend services and repositories. [1]
+- Given a build is executed, when tests are run, then they pass with no failures.
+- Core scenarios tested:
+  - Ticket creation logic
+  - Status updates
+  - Comment additions
+  - RBAC checks (where testable at unit level)
+
+---
+
+### User Story 7.2: Angular Unit Tests with Jasmine (if Angular chosen) [1]
+**As a** frontend developer  
+**I want** unit tests for Angular components and services  
+**So that** UI logic is reliable.
+
+**Acceptance Criteria**
+- Angular test specs exist for:
+  - Ticket list component
+  - Ticket creation component
+  - Ticket details component
+  - Ticket service (HTTP calls) [1]
+- `ng test` runs successfully with all tests passing and sufficient coverage for critical paths.
+
+---
+
+### User Story 7.3: API Testing with Postman [1]
+**As a** QA engineer  
+**I want** Postman collections for API tests  
+**So that** I can verify all endpoints.
+
+**Acceptance Criteria**
+- Postman collections exist for:
+  - Authentication (login)
+  - Ticket CRUD operations (create, get list, get details, update status, comment). [1]
+- Environment variables are used for base URL and JWT tokens.
+- Test scripts validate HTTP status codes and key response fields.
+
+---
+
+## Epic 8: CI/CD & Deployment (Azure DevOps) [1]
+
+### User Story 8.1: Build Pipeline
+**As a** DevOps engineer  
+**I want** an automated build pipeline  
+**So that** every commit is built and tested.
+
+**Acceptance Criteria**
+- An Azure DevOps pipeline YAML exists that:
+  - Uses `ubuntu-latest` agent  
+  - Installs .NET 8 SDK (`UseDotNet@2`)  
+  - Runs `dotnet restore`, `dotnet build`, and unit tests. [1]
+- On success, build artifacts are published (and/or Docker images built and pushed).
+- Pipeline triggers on commits to the `main` branch. [1]
+
+---
+
+### User Story 8.2: Release Pipeline to AKS
+**As a** DevOps engineer  
+**I want** an automated release pipeline  
+**So that** new versions deploy to AKS seamlessly.
+
+**Acceptance Criteria**
+- Release pipeline pulls the latest build artifact or Docker images. [1]
+- The pipeline deploys containers to Azure Kubernetes Service (AKS).
+- After deployment, the application is accessible via the configured ingress or service endpoint.
+- Deployments are repeatable and documented within the pipeline YAML. [1]
+
+---

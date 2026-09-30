@@ -33,7 +33,8 @@ builder.Services
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddSignInManager();
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
 
 builder.Services.AddSharedJwtBearer(builder.Configuration);
 builder.Services.AddServiceHealthChecks(builder.Configuration);
@@ -53,6 +54,9 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.AddScoped<TokenService>();
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
+builder.Services.AddSingleton(builder.Configuration.GetSection("Frontend").Get<FrontendSettings>() ?? new FrontendSettings());
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 
 builder.Services.AddMassTransit(x =>
 {

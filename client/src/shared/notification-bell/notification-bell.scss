@@ -1,0 +1,16 @@
+.notification-bell button[ngbDropdownToggle] {
+  background: none;
+  border: 0;
+}
+
+// Not nested under .notification-bell: with `container="body"` the dropdown
+// menu is moved out to <body>, so it no longer has that ancestor in the DOM.
+.notification-bell-menu {
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notification-bell-item.unread {
+  background-color: var(--bs-primary-bg-subtle);
+}

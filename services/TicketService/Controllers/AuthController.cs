@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Serilog;
 using TicketService.Dtos;
 using TicketService.Entities;
 using TicketService.Services;
@@ -17,7 +18,9 @@ public class AuthController(
     SignInManager<ApplicationUser> signInManager,
     TokenService tokenService,
     JwtSettings jwtSettings,
-    IHostEnvironment environment) : ControllerBase
+    IHostEnvironment environment,
+    IEmailSender emailSender,
+    FrontendSettings frontendSettings) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -84,6 +87,55 @@ public class AuthController(
         var fullName = User.FindFirst("fullName")?.Value ?? string.Empty;
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? Roles.Customer;
         return Ok(new AuthResponse(id, email, fullName, role));
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is not null)
+        {
+            var token = await userManager.GeneratePasswordResetTokenAsync(user);
+            var resetLink = $"{frontendSettings.BaseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(token)}";
+
+            try
+            {
+                await emailSender.SendAsync(
+                    user.Email!,
+                    "Reset your password",
+                    $"Use the link below to reset your password:\n\n{resetLink}\n\nIf you didn't request this, you can ignore this email.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to send password reset email");
+            }
+        }
+
+        // Always 200 regardless of whether the email matched an account, so callers
+        // can't use this endpoint to discover which emails are registered.
+        return Ok();
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+        {
+            return BadRequest(new[] { "Invalid or expired reset token." });
+        }
+
+        var result = await userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            return BadRequest(result.Errors.Select(e => e.Description));
+        }
+
+        return Ok();
     }
 
     private void SetAuthCookie(string token)

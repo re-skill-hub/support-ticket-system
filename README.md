@@ -7,6 +7,7 @@ A customer support ticketing system built as a microservices capstone: customers
 - **RabbitMQ** (via MassTransit) — event-driven communication between services
 - **SQL Server** — one shared instance, three isolated databases (`TicketServiceDb`, `ResponseServiceDb`, `NotificationServiceDb`)
 - **Docker Compose** — the entire stack, infra and app, in one command
+- **Azure Kubernetes Service + Azure DevOps** — a real trial deployment with a 5-stage CI/CD pipeline (see "Live demo" below)
 
 ## Architecture
 
@@ -33,103 +34,22 @@ Every service exposes `GET /health/live` (process-alive only, checked by its own
 
 That's it — the SDKs, Node, and Angular CLI used to build the images are baked into the Dockerfiles' build stages; you don't need them installed locally to run the stack.
 
-## Running the stack
-
-1. Copy the environment template and fill in real values:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   - `JWT_SECRET` — any long random string (32+ characters); shared by all three services since each validates tokens locally
-   - `RABBITMQ_USER` / `RABBITMQ_PASS` — any credentials for the RabbitMQ container
-   - `MSSQL_SA_PASSWORD` — must satisfy SQL Server's complexity policy (8+ characters, mixing upper/lower/digit or symbol) or the container will fail to start
-   - `LOCAL_AGENT_EMAIL` / `LOCAL_AGENT_PASSWORD` — set both to provision a local-only support agent for browser E2E; leave both empty to disable it
-   - `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` — set both to provision an initial Admin account; unlike `LOCAL_AGENT_*`, this seed runs in every environment (not just local Docker Compose), since it's the only way to bootstrap the first Admin who can then create everyone else. Leave both empty to disable it.
-
-2. Build and start everything:
-
-   ```bash
-   docker compose up --build -d
-   ```
-
-3. Wait for all containers to report healthy:
-
-   ```bash
-   docker compose ps
-   ```
-
-4. Open the app: **http://localhost:4200**
-
-RabbitMQ's management UI is available at **http://localhost:15672** (login with the `RABBITMQ_USER`/`RABBITMQ_PASS` you set in `.env`).
-
-Data persists across restarts via named volumes (`sqlserver-data`, `rabbitmq-data`) — `docker compose down && docker compose up` (no rebuild) keeps everything you created.
-
-## Logging in
-
-There are three roles: **Customer**, **SupportAgent**, and **Admin**. New accounts registered through the Angular app always become Customers — self-registration never produces a SupportAgent or Admin account. Staff and Admin accounts only come from an Admin using the "Manage Users" screen (`/admin/users`) to create one, change an existing account's role, or deactivate an account; no reusable support credentials are shipped with the application, and there is no self-service way to create additional agents.
-
-The first Admin has to come from somewhere before anyone can use that screen, so TicketService can optionally seed one initial Admin account on startup from `INITIAL_ADMIN_EMAIL`/`INITIAL_ADMIN_PASSWORD`/`INITIAL_ADMIN_FULL_NAME`. Unlike the local-only support agent below, this seed is **not** Development-gated — it runs in every environment (local Docker Compose and the AKS trial deployment alike), since without it a freshly-provisioned environment would have no Admin at all.
-
-For local Docker Compose runs only, TicketService can also create an optional support agent when both `LOCAL_AGENT_EMAIL` and `LOCAL_AGENT_PASSWORD` are set in `.env`. This bootstrap is guarded by the Development environment and is not enabled for Kubernetes or production — it exists purely for the browser E2E test below.
-
-## Browser end-to-end test
-
-Start the Compose stack as described above, set both local-agent values in `.env`, then run:
+## Quick start
 
 ```bash
-cd client
-npm ci
-npx playwright install chromium
-npm run e2e
+cp .env.example .env       # fill in JWT_SECRET / RABBITMQ_USER / RABBITMQ_PASS / MSSQL_SA_PASSWORD
+docker compose up --build -d
+docker compose ps          # wait for everything to report healthy
 ```
 
-The test registers a customer, creates a ticket, signs in as the local agent to assign, reply, and close it, then verifies the customer notification and updated dashboard metrics. It generates unique test data and waits for event-driven projections to catch up.
+Open **http://localhost:4200**. New accounts self-register as Customers; SupportAgent/Admin accounts come from an Admin using "Manage Users", or from the optional `INITIAL_ADMIN_*`/`LOCAL_AGENT_*` seed accounts described in the full guide below.
 
-## Using the app
+**Full instructions — every environment variable, logging in, using the app as each role, the browser E2E test, running on local Kubernetes, and the live AKS demo — are in [`docs/running-the-app.md`](docs/running-the-app.md).**
 
-**As a customer:**
-1. Register, then log in.
-2. "New Ticket" to raise an issue — it appears in "My Tickets" as `Open`.
-3. Open the ticket to see the agent's replies and status changes, and reply yourself.
-4. Check the notification bell for updates on your tickets.
+## Live demo
 
-**As the support agent:**
-1. Log in with credentials provisioned by an administrator.
-2. "Ticket Queue" lists all tickets, filterable by status.
-3. Open a ticket, "Assign to me", reply — the ticket automatically flips from `Open` to `InProgress` on its first response.
-4. Change status to `Closed` when resolved.
-5. "Dashboard" shows live counts (open/in-progress/closed) and average first-response/resolution times across all tickets.
-
-**As an admin:** everything a support agent can do, plus "Manage Users" — list/filter accounts by role, create a Customer/SupportAgent/Admin account, change an account's role, and activate/deactivate an account. An admin can't change their own role or deactivate their own account (self-protection, enforced both in the UI and by the API).
-
-## Tracing a request across services
-
-Every log line carries a `CorrelationId`. To watch one flow across all three services:
-
-```bash
-docker compose logs ticket-service | grep -i correlationid   # find one, e.g. from a ticket-creation log line
-docker compose logs response-service | grep <that-id>
-docker compose logs notification-service | grep <that-id>
-```
-
-The same id appears in all three because the HTTP request's correlation id is threaded onto the RabbitMQ message it publishes, and each consumer logs under that same id.
-
-## Project layout
-
-```
-support-ticket-system/
-├── docker-compose.yaml
-├── services/
-│   ├── Contracts/            # shared event DTOs, JWT wiring, observability — no domain entities
-│   ├── TicketService/        # Identity + ticket CRUD
-│   ├── ResponseService/      # responses + ticket read-model
-│   └── NotificationService/  # notifications + metrics
-└── client/                   # Angular app
-```
+A real trial deployment on Azure Kubernetes Service, built by a 5-stage Azure DevOps pipeline (Validate → BuildAndPush → DeployDev → SmokeTest → E2ETest): **https://52.152.144.127.nip.io**. Seeded account emails and what to expect (this is a cost-constrained trial, not a production SLA) are in [`docs/running-the-app.md`](docs/running-the-app.md#track-3-azure-kubernetes-service).
 
 ## Scope notes
 
-Deliberately left out for this capstone (see the project plan for the full reasoning): no API gateway/BFF — the Angular app calls all three services' ports directly; no JWT refresh-token rotation — a single longer-lived access token is used instead. Docker Compose is the local-dev target described above; a trial deployment to Azure Kubernetes Service via an Azure DevOps pipeline also exists — see `docs/azure-deployment.md` — with SQL Server and RabbitMQ still self-hosted in-cluster rather than replaced by managed Azure SQL/a managed broker, which the same doc calls out as the gap before this could be a real production deployment.
-
-For how this as-built system compares against `docs/requirement/Design Document.docx` specifically — what was implemented to close a gap, what was intentionally kept as an improvement over the doc's generic template, and what was left out of scope — see `docs/requirement/gap-analysis.md`.
+Deliberately left out for this capstone: no API gateway/BFF — the Angular app calls all three services through one nginx reverse proxy rather than a dedicated gateway service; no JWT refresh-token rotation — a single longer-lived access token is used instead; the AKS trial still self-hosts SQL Server and RabbitMQ in-cluster rather than managed Azure SQL/a managed broker. Full reasoning and the current list of forward-looking improvements are in [`docs/requirement/gap-analysis.md`](docs/requirement/gap-analysis.md), which also covers how this implementation compares to the original `Design Document.docx` requirements.

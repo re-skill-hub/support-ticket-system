@@ -1,0 +1,282 @@
+Below is a UX-focused extension of your existing design: personas, journeys/screen flows, and UX patterns that sit on top of your current technical spec for the Customer Support Ticketing System.
+
+1. Personas (Customer, Support Agent, Administrator)
+Persona 1: Customer – “Busy Business User”
+Profile
+
+Role: Customer (end user of your product/service).
+Tech comfort: Moderate; uses web apps daily but not technical.
+Context: Often multitasking, may be under time pressure, may access the system from laptop and occasionally mobile.
+Goals
+
+Quickly submit a support request when something blocks work.
+Easily understand current ticket status and what to expect next.
+Communicate with support without having to repeat information.
+Get notified when something changes (status updates, new responses).
+Pain Points
+
+Confusing status labels; not knowing what “In Progress” actually means for timelines.
+Having to re-explain the issue each time or reattach context.
+Not being sure if support actually received their ticket.
+Key UX Implications
+
+Simple, friendly language (e.g., “Your issue is being looked at” vs. “In Progress”).
+Clear “what happens next” guidance after submitting a ticket.
+Prominent “My Tickets / Ticket Status” entry point.
+Easy-to-scan ticket list with clear status badges and timestamps.
+Persona 2: Support Agent – “Time-Pressed Troubleshooter”
+Profile
+
+Role: Support Staff.
+Tech comfort: High; uses multiple tools, keyboards shortcuts, advanced filters.
+Context: Handles many tickets per day; needs to prioritize and avoid context switching.
+Goals
+
+Quickly see which tickets need attention (e.g., new, overdue, high priority).
+Efficiently manage status and communication across many tickets.
+Avoid missing updates or customer responses.
+Maintain a clear audit/history of ticket activity.
+Pain Points
+
+Long lists with no prioritization.
+Needing too many clicks to update status or add a quick response.
+Difficulty tracking which tickets are waiting on customer vs. waiting on support.
+Key UX Implications
+
+Powerful but clean ticket list with filters (status, priority, date, customer) 
+Design Document.docx
+.
+Inline status change from list or one-click actions on tickets.
+Visual emphasis on “New/Unassigned” or “Needs Response” tickets.
+Clear activity history on the ticket details screen.
+Persona 3: Administrator – “Operations & Compliance Owner”
+Profile
+
+Role: Admin / Support Manager.
+Tech comfort: High.
+Context: Oversees team performance and system health rather than handling individual tickets.
+Goals
+
+Ensure correct access control (roles, permissions).
+Monitor overall volume, resolution times, and SLAs.
+Ensure data security and compliance (RBAC, correct user access).
+Configure categories, priorities, and possibly notification rules.
+Pain Points
+
+Unclear visibility into workload distribution.
+Complicated admin interfaces for managing user roles.
+Difficulty spotting systemic issues (e.g., recurring problems).
+Key UX Implications
+
+Simple, safe admin UI for managing users/roles and global settings (when implemented).
+Readable metrics (open tickets, average time to resolve) in an overview view.
+Clear warnings and confirmation dialogs for risky actions (e.g., role changes).
+2. End-to-End User Journeys & Screen Flows
+Below are concise journeys and typical screens, mapped to your existing pages/components (Ticket List, Ticket Create, Ticket Details, Home, ManageTickets, TicketStatus, etc.) 
+Design Document.docx
+.
+
+2.1 Customer Journey: “Submit and Track a Ticket”
+Goal: Report a problem and monitor its resolution.
+
+Step 1: Access & Authentication
+Entry:
+From your product: “Help / Support” link.
+Direct URL to the support portal.
+Screens:
+Login page (if not authenticated).
+Flow:
+Customer enters email + password → clicks “Log in”.
+UX Considerations:
+Clear “Forgot password?” link.
+Immediate error feedback for invalid credentials.
+Explanation: “Log in to create and track your support requests.”
+Step 2: Landing / Home
+Screen: Home / Dashboard.
+Content:
+“Create New Ticket” primary action.
+Snapshot of recent tickets (e.g., last 3, with status).
+UX Considerations:
+Clear distinction: “Create New Ticket” vs. “View My Tickets”.
+Short helper text: “You can submit a new issue or track existing requests here.”
+Step 3: Create Ticket
+Screen: CreateTicket / ticket-create component 
+Design Document.docx
+.
+Fields:
+Title (required).
+Description (required).
+Category (optional, e.g., Billing, Technical).
+Priority (optional, e.g., Low, Normal, High).
+Flow:
+Fill in form → client-side validation → “Submit”.
+Backend: POST /tickets 
+Design Document.docx
+.
+UX Considerations:
+Inline validation (e.g., “Title is required” under the field).
+Example placeholder text in Description (e.g., “Describe what you were doing when the issue occurred…”).
+After successful submit:
+Confirmation message: “Your ticket #1234 has been created. We’ve emailed you a confirmation.”
+Clear next actions: “View Ticket” button and “Back to My Tickets”.
+Step 4: Track Ticket Status
+Screen: TicketStatus / ticket-list component for customers 
+Design Document.docx
+.
+View:
+List of customer’s tickets: Title, Status, CreatedAt, Last Updated 
+Design Document.docx
+.
+Optional filters: by Status (Open/In Progress/Resolved).
+Flow:
+Customer scans list → clicks a ticket row → Ticket Details page.
+UX Considerations:
+Color-coded status badges.
+Clear notation of “Last updated x minutes ago”.
+Empty state: “You don’t have any tickets yet. Create your first support request.”
+Step 5: View Ticket & Communicate
+Screen: TicketDetails / ticket-details component 
+Design Document.docx
+.
+View:
+Ticket summary: Title, Status, Category, Priority, CreatedAt, UpdatedAt.
+Conversation thread (comments chronologically) 
+Design Document.docx
+.
+Add Comment input box.
+Flow:
+Customer scans previous messages → types a new comment → “Send”.
+Backend: PUT /tickets/{id}/comment 
+Design Document.docx
+.
+UX Considerations:
+Clear labels of who posted each comment (you vs. Support).
+Time stamps on each entry.
+After sending a comment: comment appears instantly in the list; subtle success indication.
+2.2 Support Agent Journey: “Manage and Resolve Tickets”
+Goal: Efficiently triage and resolve customer issues.
+
+Step 1: Login & Landing
+Same login mechanics as customers; role-based redirect.
+Landing Screen: ManageTickets page / support ticket list 
+Design Document.docx
+.
+View:
+Tabs or filters for “New”, “In Progress”, “Resolved”.
+Columns: Ticket ID, Title, Customer Name (if available), Status, Priority, Age/Last Updated.
+Step 2: Triage & Prioritization
+Support selects filters (e.g., “Status: Open”, “Priority: High”).
+List updates immediately.
+Visual emphasis for:
+New/unassigned tickets.
+High priority or aging tickets (e.g., color, small icon).
+Step 3: View Ticket Details & History
+Screen: TicketDetails, same underlying component but with additional controls for Support 
+Design Document.docx
+.
+View:
+All ticket details + full comment history 
+Design Document.docx
+.
+Status change control (dropdown or buttons).
+Flow:
+Support reads context → if needed, asks a clarification question via new comment.
+Updates Status from “Open” to “In Progress” or “Resolved” (via PUT /tickets/{id}/status) 
+Design Document.docx
+.
+Step 4: Close / Resolve Ticket
+Support writes a closing comment explaining resolution.
+Changes status to “Resolved”.
+Confirm dialog (optional): “Mark this ticket as Resolved?”.
+After resolution:
+Ticket appears under “Resolved” tab but remains accessible for history.
+2.3 Administrator Journey (Future-Proof Outline)
+Even if not fully implemented yet:
+
+Screens:
+Admin Dashboard (key metrics).
+User & Role Management (assign Customer/Support/Admin).
+Flows:
+Add Support user → assign role → confirm.
+View overall ticket stats, export if needed.
+3. UX Patterns: Errors, Notifications, Ticket Management
+3.1 Error Handling Patterns
+a) Form Validation (Create Ticket, Login, Comments)
+Type: Inline, field-level validation + summarized error.
+Patterns:
+On blur and on submit validation.
+Red border + short helper text (e.g., “This field cannot be empty.”).
+Disable primary CTA (Submit) or keep it enabled but show clear error messages after click.
+Consistency:
+Always put error text directly under the field.
+Use the same error style across Login, Ticket Create, Add Comment.
+b) API Errors (Server/Network Issues)
+Type: Non-blocking banner/toast + inline message on specific screens.
+Patterns:
+For transient issues (network): toast at top: “We couldn’t reach the server. Please check your connection and try again.”
+For permission issues (403): user-friendly message: “You don’t have access to this page.” with a link back to Home.
+For not found (404) on ticket details: “This ticket may have been deleted or you don’t have access to it.”
+Technical Alignment:
+Map HTTP status codes (400, 401, 403, 404, 500) from your existing REST API 
+Design Document.docx
+ to consistent front-end messages.
+3.2 Notification Patterns
+Given the design calls for notifications to both customers and support staff when ticket status changes or new comments are added 
+Design Document.docx
+:
+
+a) In-App Notifications
+Use Cases:
+New comment on a ticket the user is viewing.
+Status change on a ticket in the user’s list.
+Patterns:
+Small “New update” badge on ticket row in list.
+Optional global bell icon with dropdown listing recent updates.
+When the user is on the Ticket Details page:
+Auto-refresh comments or show “New comment, click to load” bar at top of thread.
+b) Email Notifications (if implemented)
+When:
+Ticket created (confirmation to Customer).
+Status changed (Open → In Progress/Resolved).
+New comment added from the opposite side.
+UX Considerations:
+Clear subject lines: “Ticket #1234 updated: In Progress”.
+In-body: summary, direct link to view ticket.
+c) Notification Preferences (Future)
+Allow users to opt out of certain non-critical notifications while keeping critical ones.
+3.3 Ticket Management Patterns
+Aligning to your Ticket List, Ticket Create, and Ticket Details components 
+Design Document.docx
+.
+
+a) Ticket List (Customer & Support)
+Pattern: Paginated, filterable table/list 
+Design Document.docx
+.
+Customer View:
+Default filter: All tickets owned by current user.
+Simple filters: Status + search by title or ID.
+Support View:
+More advanced filters: status, priority, date, customer email/name.
+Sort by: Last Updated, Priority.
+List Item Content:
+Primary: Title.
+Secondary: Status badge, Last Updated, Ticket ID.
+Optional icons for priority or unread updates.
+b) Ticket Details
+Primary Layout Zones:
+Left/top: Ticket summary (title, id, status, priority, category, timestamps).
+Main: Conversation thread (comments) with newest at bottom.
+Optional right-side or bottom: metadata (customer info, internal notes if added later).
+Interaction Patterns:
+Status control clearly separated from comments to avoid accidental changes.
+“Add Comment” box always visible, anchored at bottom.
+Indicate who changed status and when within the history.
+c) Status Management (Support)
+Control Type:
+A dropdown or segmented control with options: Open, In Progress, Resolved 
+Design Document.docx
+.
+Pattern:
+Change triggers confirmation toast: “Status changed to In Progress”.
+If API fails, revert control to previous value and show

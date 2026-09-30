@@ -22,13 +22,13 @@ Create a budget alert in Cost Management before creating resources. Use one regi
 
 ## 2. Azure resources
 
-Set shell variables for the chosen names:
+Set shell variables for the chosen names. This trial's actual, live resources use a `-01` suffix (`rg-support-ticket-dev-01`, `aks-support-ticket-dev-01`, `acrsupportticketdev01`) after an earlier name collided with a quota-capped region and had to be recreated — any suffix works for a fresh deployment, it just needs to be consistent across every command below:
 
 ```powershell
 $LOCATION = "<azure-region>"
-$RESOURCE_GROUP = "rg-support-ticket-dev"
+$RESOURCE_GROUP = "rg-support-ticket-dev-01"
 $ACR_NAME = "<globally-unique-acr-name>"
-$AKS_NAME = "aks-support-ticket-dev"
+$AKS_NAME = "aks-support-ticket-dev-01"
 ```
 
 Create the resource group, registry, and AKS cluster:
@@ -71,7 +71,7 @@ Create an environment named `support-ticketing-dev` and authorize the pipeline t
 
 Also register the AKS namespace as a **Kubernetes resource** on the environment (Environments → `support-ticketing-dev` → Resources → Kubernetes, pointing at the `support-ticketing-dev` namespace in the cluster) — this is what makes the portal show live pod/rollout status for `DeployDev` runs, separately from the approval check above.
 
-Pull requests only run the `Validate` stage (build/test) — `BuildAndPush`, `DeployDev`, and `SmokeTest` are skipped for PR-triggered runs (`Build.Reason == 'PullRequest'`), so opening a PR never pushes images or touches the cluster.
+Pull requests only run the `Validate` stage (build/test) — `BuildAndPush`, `DeployDev`, `SmokeTest`, and `E2ETest` are skipped for PR-triggered runs (`Build.Reason == 'PullRequest'`), so opening a PR never pushes images or touches the cluster.
 
 Create a variable group named `support-ticketing-dev` with these non-secret values:
 
@@ -93,7 +93,7 @@ Do not store the trial secrets as plain Azure DevOps secret variables. Instead, 
 
 ```bash
 az keyvault create \
-  --name <globally-unique-vault-name> \
+  --name kv-support-ticket-dev-01 \
   --resource-group $RESOURCE_GROUP \
   --location $LOCATION \
   --enable-rbac-authorization true
@@ -152,7 +152,7 @@ az aks enable-addons --resource-group $RESOURCE_GROUP --name $AKS_NAME \
 
 ## 4. Run the pipeline
 
-Commit and push `azure-pipelines.yaml`. It has four stages — **Validate** (build/test everything, including a `kubectl kustomize` render check of the overlay), **BuildAndPush**, **DeployDev**, **SmokeTest** — with `BuildAndPush`/`DeployDev`/`SmokeTest` skipped on pull-request-triggered runs. Full stage-by-stage detail, the per-service templating, and the deploy identity swap are documented in `docs/ci-cd-pipeline.md`.
+Commit and push `azure-pipelines.yaml`. It has five stages — **Validate** (build/test everything, including a `kubectl kustomize` render check of the overlay), **BuildAndPush**, **DeployDev**, **SmokeTest**, **E2ETest** (Playwright against the just-deployed environment) — with `BuildAndPush`/`DeployDev`/`SmokeTest`/`E2ETest` skipped on pull-request-triggered runs. Full stage-by-stage detail, the per-service templating, and the deploy identity swap are documented in `docs/ci-cd-pipeline.md`.
 
 Before the first successful pipeline run, `clientEndpoint` must be known because it is used for CORS configuration and the smoke test. This is solved by pre-provisioning a static public IP before the first deploy, rather than waiting to discover whatever ephemeral IP a `LoadBalancer` Service happens to get — see the TLS section below. `clientEndpoint` is then set to that IP's `https://<ip>.nip.io` hostname, no trailing slash.
 

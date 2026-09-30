@@ -10,6 +10,7 @@
 
   .filters {
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
   }
 
@@ -26,5 +27,9 @@
     text-align: center;
     padding: 24px;
     color: var(--bs-secondary-color);
+  }
+
+  .aging-row {
+    background-color: var(--bs-warning-bg-subtle);
   }
 }

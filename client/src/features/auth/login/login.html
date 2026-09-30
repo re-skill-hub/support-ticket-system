@@ -8,6 +8,10 @@
       </div>
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        @if (loginError()) {
+          <div class="alert alert-danger" role="alert">{{ loginError() }}</div>
+        }
+
         <div class="mb-3">
           <label for="email" class="form-label">Email</label>
           <input
@@ -17,13 +21,15 @@
             formControlName="email"
             autocomplete="email"
             [class.is-invalid]="form.controls.email.invalid && form.controls.email.touched"
+            [attr.aria-invalid]="form.controls.email.invalid && form.controls.email.touched"
+            [attr.aria-describedby]="form.controls.email.invalid && form.controls.email.touched ? 'email-error' : null"
           />
           @if (form.controls.email.invalid && form.controls.email.touched) {
-            <div class="invalid-feedback">Enter a valid email address.</div>
+            <div class="invalid-feedback" id="email-error">Enter a valid email address.</div>
           }
         </div>
 
-        <div class="mb-4">
+        <div class="mb-2">
           <label for="password" class="form-label">Password</label>
           <input
             id="password"
@@ -32,10 +38,16 @@
             formControlName="password"
             autocomplete="current-password"
             [class.is-invalid]="form.controls.password.invalid && form.controls.password.touched"
+            [attr.aria-invalid]="form.controls.password.invalid && form.controls.password.touched"
+            [attr.aria-describedby]="form.controls.password.invalid && form.controls.password.touched ? 'password-error' : null"
           />
           @if (form.controls.password.invalid && form.controls.password.touched) {
-            <div class="invalid-feedback">Password is required.</div>
+            <div class="invalid-feedback" id="password-error">Password is required.</div>
           }
+        </div>
+
+        <div class="text-end mb-4">
+          <a routerLink="/forgot-password" class="small">Forgot password?</a>
         </div>
 
         <button type="submit" class="btn btn-primary w-100" [disabled]="form.invalid || loading()">

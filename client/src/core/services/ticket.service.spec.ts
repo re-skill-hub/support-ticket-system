@@ -60,11 +60,16 @@ describe('TicketService', () => {
     req.flush([]);
   });
 
-  it('getAll() with status and priority sends both as query params', () => {
-    service.getAll('Open', 'High').subscribe();
+  it('getAll() with filters sends them as query params', () => {
+    service.getAll({ status: 'Open', priority: 'High', category: 'Technical', customerId: 'u1' }).subscribe();
 
     const req = httpMock.expectOne(
-      (r) => r.url === baseUrl && r.params.get('status') === 'Open' && r.params.get('priority') === 'High',
+      (r) =>
+        r.url === baseUrl &&
+        r.params.get('status') === 'Open' &&
+        r.params.get('priority') === 'High' &&
+        r.params.get('category') === 'Technical' &&
+        r.params.get('customerId') === 'u1',
     );
     req.flush([]);
   });
@@ -92,5 +97,22 @@ describe('TicketService', () => {
     const req = httpMock.expectOne(`${baseUrl}/t1/assign`);
     expect(req.request.method).toBe('PATCH');
     req.flush(ticket);
+  });
+
+  it('assign() patches /tickets/:id/assign with the target agent id', () => {
+    service.assign('t1', { agentId: 'agent-1' }).subscribe();
+
+    const req = httpMock.expectOne(`${baseUrl}/t1/assign`);
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ agentId: 'agent-1' });
+    req.flush(ticket);
+  });
+
+  it('getAgents() gets /tickets/agents', () => {
+    service.getAgents().subscribe();
+
+    const req = httpMock.expectOne(`${baseUrl}/agents`);
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
   });
 });

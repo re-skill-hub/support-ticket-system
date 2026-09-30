@@ -6,7 +6,8 @@ import { of } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { ResponseService } from '../../../core/services/response.service';
 import { TicketService } from '../../../core/services/ticket.service';
-import { Ticket } from '../../../types/ticket.types';
+import { ToastService } from '../../../core/services/toast.service';
+import { StaffSummary, Ticket } from '../../../types/ticket.types';
 import { TicketResponseMessage } from '../../../types/response.types';
 import { TicketDetail } from './ticket-detail';
 
@@ -15,8 +16,11 @@ describe('TicketDetail', () => {
     getById: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
     assignToSelf: ReturnType<typeof vi.fn>;
+    assign: ReturnType<typeof vi.fn>;
+    getAgents: ReturnType<typeof vi.fn>;
   };
   let responseService: { getByTicket: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  let toastService: { show: ReturnType<typeof vi.fn> };
 
   const ticket: Ticket = {
     id: 't1',
@@ -41,16 +45,24 @@ describe('TicketDetail', () => {
     createdAtUtc: '2026-01-01T01:00:00Z',
   };
 
+  const agents: StaffSummary[] = [
+    { id: 'agent1', fullName: 'Ada Agent' },
+    { id: 'agent2', fullName: 'Bob Agent' },
+  ];
+
   beforeEach(async () => {
     ticketService = {
       getById: vi.fn().mockReturnValue(of(ticket)),
       updateStatus: vi.fn().mockReturnValue(of({ ...ticket, status: 'InProgress' })),
       assignToSelf: vi.fn().mockReturnValue(of({ ...ticket, assignedAgentId: 'agent1' })),
+      assign: vi.fn().mockReturnValue(of({ ...ticket, assignedAgentId: 'agent2' })),
+      getAgents: vi.fn().mockReturnValue(of(agents)),
     };
     responseService = {
       getByTicket: vi.fn().mockReturnValue(of([response])),
       create: vi.fn().mockReturnValue(of(response)),
     };
+    toastService = { show: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [TicketDetail],
@@ -59,6 +71,7 @@ describe('TicketDetail', () => {
         provideHttpClientTesting(),
         { provide: TicketService, useValue: ticketService },
         { provide: ResponseService, useValue: responseService },
+        { provide: ToastService, useValue: toastService },
         {
           provide: AuthService,
           useValue: { isAgent: () => false, isStaff: () => false, isCustomer: () => true, currentUser: () => null },
@@ -75,6 +88,13 @@ describe('TicketDetail', () => {
     const fixture = TestBed.createComponent(TicketDetail);
     fixture.detectChanges();
     return fixture;
+  }
+
+  function createStaffComponent() {
+    TestBed.overrideProvider(AuthService, {
+      useValue: { isAgent: () => true, isStaff: () => true, isCustomer: () => false, currentUser: () => null },
+    });
+    return createComponent();
   }
 
   it('loads the ticket and its responses on init', () => {
@@ -100,6 +120,7 @@ describe('TicketDetail', () => {
     expect(component.sending()).toBe(false);
     expect(responseService.getByTicket).toHaveBeenCalledTimes(2);
     expect(ticketService.getById).toHaveBeenCalledTimes(2);
+    expect(toastService.show).toHaveBeenCalledWith('Reply sent.', 'success');
   });
 
   it('does not send an empty reply', () => {
@@ -115,6 +136,71 @@ describe('TicketDetail', () => {
 
     expect(ticketService.assignToSelf).toHaveBeenCalledWith('t1');
     expect(fixture.componentInstance.ticket()?.assignedAgentId).toBe('agent1');
+    expect(toastService.show).toHaveBeenCalledWith('Ticket assigned to you.', 'success');
+  });
+
+  it('labels the current user\'s own response as "You"', () => {
+    TestBed.overrideProvider(AuthService, {
+      useValue: {
+        isAgent: () => false,
+        isStaff: () => false,
+        isCustomer: () => true,
+        currentUser: () => ({ id: 'agent1', email: '', fullName: '', role: 'SupportAgent' }),
+      },
+    });
+    const fixture = createComponent();
+
+    expect(fixture.componentInstance.authorLabel(response)).toBe('You');
+  });
+
+  it('labels a staff response from someone else as "Support"', () => {
+    const fixture = createComponent();
+
+    expect(fixture.componentInstance.authorLabel(response)).toBe('Support');
+  });
+
+  it('labels a customer response from someone else as "Customer"', () => {
+    const fixture = createComponent();
+
+    expect(fixture.componentInstance.authorLabel({ ...response, authorRole: 'Customer' })).toBe('Customer');
+  });
+
+  it('does not load agents for a non-staff user', () => {
+    createComponent();
+
+    expect(ticketService.getAgents).not.toHaveBeenCalled();
+  });
+
+  it('loads agents for a staff user', () => {
+    const fixture = createStaffComponent();
+
+    expect(ticketService.getAgents).toHaveBeenCalled();
+    expect(fixture.componentInstance.agents()).toEqual(agents);
+  });
+
+  it('reassigns the ticket to the selected agent', () => {
+    const fixture = createStaffComponent();
+    fixture.componentInstance.onAgentSelected('agent2');
+
+    expect(ticketService.assign).toHaveBeenCalledWith('t1', { agentId: 'agent2' });
+    expect(fixture.componentInstance.ticket()?.assignedAgentId).toBe('agent2');
+    expect(toastService.show).toHaveBeenCalledWith('Ticket reassigned.', 'success');
+  });
+
+  it('unassigns the ticket when the selection is cleared', () => {
+    const fixture = createStaffComponent();
+    fixture.componentInstance.onAgentSelected('');
+
+    expect(ticketService.assign).toHaveBeenCalledWith('t1', { agentId: null });
+    expect(toastService.show).toHaveBeenCalledWith('Ticket unassigned.', 'success');
+  });
+
+  it('shows a success toast after a status change', () => {
+    const fixture = createStaffComponent();
+    fixture.componentInstance.statusControl.setValue('InProgress');
+
+    expect(ticketService.updateStatus).toHaveBeenCalledWith('t1', { status: 'InProgress' });
+    expect(toastService.show).toHaveBeenCalledWith('Status updated to InProgress.', 'success');
   });
 
   it('styles SupportAgent and Admin responses as staff, but not Customer', () => {

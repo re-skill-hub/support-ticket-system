@@ -7,12 +7,13 @@ import { Ticket } from '../../../types/ticket.types';
 import { StatusChip } from '../../../shared/status-chip/status-chip';
 import { PriorityChip } from '../../../shared/priority-chip/priority-chip';
 import { SortableHeader, SortDirection, SortEvent } from '../../../shared/sortable-header/sortable-header.directive';
+import { RelativeTimePipe } from '../../../shared/relative-time/relative-time.pipe';
 
 const PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-ticket-list',
-  imports: [DatePipe, RouterLink, NgbPagination, StatusChip, PriorityChip, SortableHeader],
+  imports: [DatePipe, RelativeTimePipe, RouterLink, NgbPagination, StatusChip, PriorityChip, SortableHeader],
   templateUrl: './ticket-list.html',
   styleUrl: './ticket-list.scss',
 })

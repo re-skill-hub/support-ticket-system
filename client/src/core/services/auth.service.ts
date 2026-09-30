@@ -2,7 +2,14 @@ import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable, computed, signal, inject } from '@angular/core';
 import { Observable, catchError, firstValueFrom, of, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { AuthResponse, AuthUser, LoginRequest, RegisterRequest } from '../../types/auth.types';
+import {
+  AuthResponse,
+  AuthUser,
+  ForgotPasswordRequest,
+  LoginRequest,
+  RegisterRequest,
+  ResetPasswordRequest,
+} from '../../types/auth.types';
 import { SILENT_AUTH_CHECK } from '../interceptors/error.interceptor';
 
 @Injectable({ providedIn: 'root' })
@@ -26,8 +33,18 @@ export class AuthService {
 
   login(request: LoginRequest): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.baseUrl}/login`, request)
+      .post<AuthResponse>(`${this.baseUrl}/login`, request, {
+        context: new HttpContext().set(SILENT_AUTH_CHECK, true),
+      })
       .pipe(tap((response) => this.setSession(response)));
+  }
+
+  forgotPassword(request: ForgotPasswordRequest): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/forgot-password`, request);
+  }
+
+  resetPassword(request: ResetPasswordRequest): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/reset-password`, request);
   }
 
   logout(): Observable<void> {

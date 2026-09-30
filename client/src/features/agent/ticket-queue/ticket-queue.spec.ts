@@ -46,10 +46,19 @@ describe('TicketQueue', () => {
     return fixture;
   }
 
+  const emptyFilters = {
+    status: undefined,
+    priority: undefined,
+    category: undefined,
+    customerId: undefined,
+    fromUtc: undefined,
+    toUtc: undefined,
+  };
+
   it('loads all tickets with no filters on init', () => {
     const fixture = createComponent();
 
-    expect(ticketService.getAll).toHaveBeenCalledWith(undefined, undefined);
+    expect(ticketService.getAll).toHaveBeenCalledWith(emptyFilters);
     expect(fixture.componentInstance.tickets()).toEqual(tickets);
     expect(fixture.componentInstance.hasAnyTickets()).toBe(true);
   });
@@ -60,7 +69,7 @@ describe('TicketQueue', () => {
 
     fixture.componentInstance.onStatusFilterChange('Open');
 
-    expect(ticketService.getAll).toHaveBeenCalledWith('Open', undefined);
+    expect(ticketService.getAll).toHaveBeenCalledWith({ ...emptyFilters, status: 'Open' });
     expect(fixture.componentInstance.statusFilter()).toBe('Open');
   });
 
@@ -70,8 +79,42 @@ describe('TicketQueue', () => {
 
     fixture.componentInstance.onPriorityFilterChange('Urgent');
 
-    expect(ticketService.getAll).toHaveBeenCalledWith(undefined, 'Urgent');
+    expect(ticketService.getAll).toHaveBeenCalledWith({ ...emptyFilters, priority: 'Urgent' });
     expect(fixture.componentInstance.priorityFilter()).toBe('Urgent');
+  });
+
+  it('reloads with the selected category filter', () => {
+    const fixture = createComponent();
+    ticketService.getAll.mockClear();
+
+    fixture.componentInstance.onCategoryFilterChange('Billing');
+
+    expect(ticketService.getAll).toHaveBeenCalledWith({ ...emptyFilters, category: 'Billing' });
+    expect(fixture.componentInstance.categoryFilter()).toBe('Billing');
+  });
+
+  it('reloads with the entered customer id filter', () => {
+    const fixture = createComponent();
+    ticketService.getAll.mockClear();
+
+    fixture.componentInstance.onCustomerIdFilterChange('u1');
+
+    expect(ticketService.getAll).toHaveBeenCalledWith({ ...emptyFilters, customerId: 'u1' });
+    expect(fixture.componentInstance.customerIdFilter()).toBe('u1');
+  });
+
+  it('reloads with the selected date range as UTC bounds', () => {
+    const fixture = createComponent();
+    ticketService.getAll.mockClear();
+
+    fixture.componentInstance.onFromDateFilterChange('2026-01-01');
+    fixture.componentInstance.onToDateFilterChange('2026-01-31');
+
+    expect(ticketService.getAll).toHaveBeenLastCalledWith({
+      ...emptyFilters,
+      fromUtc: '2026-01-01T00:00:00.000Z',
+      toUtc: '2026-01-31T23:59:59.999Z',
+    });
   });
 
   it('combines status and priority filters', () => {
@@ -81,6 +124,6 @@ describe('TicketQueue', () => {
     fixture.componentInstance.onStatusFilterChange('Open');
     fixture.componentInstance.onPriorityFilterChange('Urgent');
 
-    expect(ticketService.getAll).toHaveBeenLastCalledWith('Open', 'Urgent');
+    expect(ticketService.getAll).toHaveBeenLastCalledWith({ ...emptyFilters, status: 'Open', priority: 'Urgent' });
   });
 });
