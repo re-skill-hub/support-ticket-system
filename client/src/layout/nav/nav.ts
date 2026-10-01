@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, signal, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { interval, startWith } from 'rxjs';
 import { NgbCollapse } from '@ng-bootstrap/ng-bootstrap';
@@ -18,12 +19,13 @@ export class Nav implements OnInit {
   readonly authService = inject(AuthService);
   readonly notificationService = inject(NotificationService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly collapsed = signal(true);
 
   ngOnInit(): void {
     interval(UNREAD_POLL_INTERVAL_MS)
-      .pipe(startWith(0))
+      .pipe(startWith(0), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         if (this.authService.isAuthenticated()) {
           this.notificationService.refreshUnreadCount();

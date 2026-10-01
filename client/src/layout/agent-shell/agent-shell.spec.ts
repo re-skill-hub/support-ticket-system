@@ -10,6 +10,7 @@ import { AgentShell } from './agent-shell';
 describe('AgentShell', () => {
   let authService: {
     isAdmin: ReturnType<typeof vi.fn>;
+    isAuthenticated: ReturnType<typeof vi.fn>;
     currentUser: ReturnType<typeof vi.fn>;
     logout: ReturnType<typeof vi.fn>;
   };
@@ -22,6 +23,7 @@ describe('AgentShell', () => {
   function configure(isAdmin: boolean) {
     authService = {
       isAdmin: vi.fn().mockReturnValue(isAdmin),
+      isAuthenticated: vi.fn().mockReturnValue(true),
       currentUser: vi.fn().mockReturnValue({ id: 'u1', email: 'a@example.test', fullName: 'A Gent', role: 'SupportAgent' }),
       logout: vi.fn().mockReturnValue(of(undefined)),
     };
@@ -76,5 +78,28 @@ describe('AgentShell', () => {
     expect(notificationService.resetUnreadCount).toHaveBeenCalled();
     expect(authService.logout).toHaveBeenCalled();
     expect(navigateByUrl).toHaveBeenCalledWith('/login');
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it('does not poll for unread notifications once not authenticated', async () => {
+    await configure(false);
+    authService.isAuthenticated.mockReturnValue(false);
+    createComponent();
+
+    expect(notificationService.refreshUnreadCount).not.toHaveBeenCalled();
+  });
+
+  it('stops polling for unread notifications once the shell is destroyed (e.g. on logout)', async () => {
+    vi.useFakeTimers();
+    await configure(false);
+    const fixture = createComponent();
+    expect(notificationService.refreshUnreadCount).toHaveBeenCalledTimes(1);
+
+    fixture.destroy();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    // Without takeUntilDestroyed() this would keep firing every 30s forever, even after logout.
+    expect(notificationService.refreshUnreadCount).toHaveBeenCalledTimes(1);
   });
 });

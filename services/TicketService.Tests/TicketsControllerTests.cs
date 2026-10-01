@@ -125,6 +125,30 @@ public class TicketsControllerTests
     }
 
     [Fact]
+    public async Task GetMine_ResolvesAssignedAgentName()
+    {
+        await using var app = await CreateAppAsync();
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var agent = await SeedStaffUserAsync(userManager, "agent-1", Roles.SupportAgent);
+        db.Tickets.AddRange(
+            new Ticket { CustomerId = "customer-1", Title = "Assigned", Description = "d", AssignedAgentId = agent.Id },
+            new Ticket { CustomerId = "customer-1", Title = "Unassigned", Description = "d" });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManager, new Mock<IPublishEndpoint>(), "customer-1", Roles.Customer);
+
+        var result = await controller.GetMine();
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var tickets = Assert.IsAssignableFrom<IEnumerable<TicketResponse>>(ok.Value).ToList();
+        Assert.Equal("agent-1", tickets.Single(t => t.Title == "Assigned").AssignedAgentName);
+        Assert.Null(tickets.Single(t => t.Title == "Unassigned").AssignedAgentName);
+    }
+
+    [Fact]
     public async Task GetAll_FiltersByStatus_WhenProvided()
     {
         await using var app = await CreateAppAsync();
@@ -284,6 +308,31 @@ public class TicketsControllerTests
     }
 
     [Fact]
+    public async Task GetAll_ResolvesAssignedAgentName_ForMultipleTickets()
+    {
+        await using var app = await CreateAppAsync();
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var agent = await SeedStaffUserAsync(userManager, "agent-1", Roles.SupportAgent);
+        var admin = await SeedStaffUserAsync(userManager, "admin-1", Roles.Admin);
+        db.Tickets.AddRange(
+            new Ticket { CustomerId = "customer-1", Title = "For agent", Description = "d", AssignedAgentId = agent.Id },
+            new Ticket { CustomerId = "customer-1", Title = "For admin", Description = "d", AssignedAgentId = admin.Id });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManager, new Mock<IPublishEndpoint>(), "someone-else", Roles.SupportAgent);
+
+        var result = await controller.GetAll(status: null, priority: null);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var tickets = Assert.IsAssignableFrom<IEnumerable<TicketResponse>>(ok.Value).ToList();
+        Assert.Equal("agent-1", tickets.Single(t => t.Title == "For agent").AssignedAgentName);
+        Assert.Equal("admin-1", tickets.Single(t => t.Title == "For admin").AssignedAgentName);
+    }
+
+    [Fact]
     public async Task GetById_OwnerCanAccess()
     {
         await using var app = await CreateAppAsync();
@@ -301,6 +350,27 @@ public class TicketsControllerTests
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Equal(ticket.Id, Assert.IsType<TicketResponse>(ok.Value).Id);
+    }
+
+    [Fact]
+    public async Task GetById_ResolvesAssignedAgentName()
+    {
+        await using var app = await CreateAppAsync();
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var agent = await SeedStaffUserAsync(userManager, "agent-1", Roles.SupportAgent);
+        var ticket = new Ticket { CustomerId = "customer-1", Title = "t", Description = "d", AssignedAgentId = agent.Id };
+        db.Tickets.Add(ticket);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManager, new Mock<IPublishEndpoint>(), "customer-1", Roles.Customer);
+
+        var result = await controller.GetById(ticket.Id);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal("agent-1", Assert.IsType<TicketResponse>(ok.Value).AssignedAgentName);
     }
 
     [Fact]

@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { environment } from '../../environments/environment';
 import { AuthResponse } from '../../types/auth.types';
-import { SILENT_AUTH_CHECK } from '../interceptors/error.interceptor';
+import { SILENT_BOOTSTRAP_CHECK } from '../interceptors/error.interceptor';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
@@ -120,11 +120,11 @@ describe('AuthService', () => {
     expect(service.currentUser()).toBeNull();
   });
 
-  it('initialize() marks /me as a silent auth check so a 401 does not trigger the global error toast', () => {
+  it('initialize() marks /me as a silent bootstrap check so no failure triggers the global error toast', () => {
     const promise = service.initialize();
 
     const req = httpMock.expectOne(`${baseUrl}/me`);
-    expect(req.request.context.get(SILENT_AUTH_CHECK)).toBe(true);
+    expect(req.request.context.get(SILENT_BOOTSTRAP_CHECK)).toBe(true);
 
     req.flush(null, { status: 401, statusText: 'Unauthorized' });
     return promise;
