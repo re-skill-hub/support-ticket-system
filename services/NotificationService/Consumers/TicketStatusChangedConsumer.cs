@@ -1,4 +1,6 @@
 using Contracts.Events;
+using Contracts.ExceptionHandling;
+using Contracts.Messaging;
 using Contracts.Observability;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -17,8 +19,8 @@ public class TicketStatusChangedConsumer(AppDbContext db, ILogger<TicketStatusCh
         var metric = await db.TicketMetrics.FirstOrDefaultAsync(m => m.TicketId == message.TicketId);
         if (metric is null)
         {
-            logger.LogWarning("Received TicketStatusChanged for unknown TicketMetric {TicketId}.", message.TicketId);
-            throw new InvalidOperationException($"TicketMetric {message.TicketId} has not been projected yet.");
+            logger.LogWarning("Received TicketStatusChanged for unknown TicketMetric {TicketId}; will retry.", message.TicketId);
+            throw new ProjectionNotReadyException($"TicketMetric {message.TicketId} has not been projected yet.");
         }
 
         metric.Status = message.NewStatus;
@@ -28,7 +30,7 @@ public class TicketStatusChangedConsumer(AppDbContext db, ILogger<TicketStatusCh
         }
 
         var messageId = context.MessageId ?? Guid.NewGuid();
-        if (!await db.Notifications.AnyAsync(n => n.SourceMessageId == messageId))
+        if (!await ConsumedMessageGuard.AlreadyProcessedAsync(db.Notifications, messageId))
         {
             db.Notifications.Add(new Notification
             {

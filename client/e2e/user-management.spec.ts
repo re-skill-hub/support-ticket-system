@@ -27,7 +27,9 @@ test('admin creates a user, changes their role, deactivates them, and blocks the
   await page.getByLabel('Email').fill(newUserEmail);
   await page.getByLabel('Password').fill(newUserPassword);
   await page.getByLabel('Full name').fill('E2E Managed User');
-  await page.getByLabel('Role').selectOption('Customer');
+  // Exact match: without it, this substring-matches "Role filter" and every row's "Change role"
+  // select too (8 elements total) now that the admin user-list page has grown those controls.
+  await page.getByLabel('Role', { exact: true }).selectOption('Customer');
   const createUserResponse = page.waitForResponse(
     (response) => response.url().endsWith('/api/users') && response.request().method() === 'POST',
   );

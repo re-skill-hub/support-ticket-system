@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 using Serilog;
 using Serilog.Context;
+using Serilog.Enrichers.Span;
 using Serilog.Formatting.Compact;
 
 namespace Contracts.Observability;
@@ -28,6 +29,10 @@ public static class ObservabilityExtensions
             loggerConfiguration
                 .Enrich.FromLogContext()
                 .Enrich.WithProperty("ServiceName", serviceName)
+                // Adds TraceId/SpanId (from AddSharedTracing's OpenTelemetry SDK) alongside the
+                // app-level CorrelationId above, so a log line can be cross-referenced with a
+                // trace span from the same request.
+                .Enrich.WithSpan()
                 .ReadFrom.Configuration(context.Configuration)
                 .WriteTo.Console(new CompactJsonFormatter());
         });
@@ -78,6 +83,11 @@ public static class ObservabilityExtensions
     /// GetCorrelationId below), and pushes it into Serilog's LogContext so every log
     /// line for that request carries it. Parsed as a Guid so it lines up with
     /// MassTransit's own Guid-typed CorrelationId once threaded onto a published message.
+    /// Also normalizes the value back onto the *request* header (not just the response) —
+    /// load-bearing when this runs in the API gateway, since YARP forwards request headers
+    /// downstream: without this, a request that arrived at the gateway with no correlation id
+    /// would get a gateway-minted id that never reaches the backend service, which would then
+    /// mint its own different one.
     /// </summary>
     public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
     {
@@ -89,6 +99,7 @@ public static class ObservabilityExtensions
                 : Guid.NewGuid();
 
             context.Items[CorrelationIdItemKey] = correlationId;
+            context.Request.Headers[CorrelationIdHeader] = correlationId.ToString();
             context.Response.Headers[CorrelationIdHeader] = correlationId.ToString();
 
             using (LogContext.PushProperty("CorrelationId", correlationId))

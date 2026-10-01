@@ -4,13 +4,13 @@ This overlay is for a low-cost development deployment only. It reuses the local 
 
 The Azure DevOps pipeline creates `app-secrets` at deployment time from protected variables. No secret manifest belongs in source control.
 
-The client nginx container proxies same-origin API paths to the internal services:
+The client nginx container proxies every same-origin `/api/*` call to the `api-gateway` Service (a YARP reverse proxy — see `docs/distributed-resilience.md`), which then routes it to the right backend by path:
 
-- `/api/tickets` -> `ticket-service`
+- `/api/(auth|tickets|users)` -> `ticket-service`
 - `/api/responses` -> `response-service`
-- `/api/notifications` -> `notification-service`
+- `/api/(metrics|notifications)` -> `notification-service`
 
-The three API Services are `ClusterIP`. The client is also `ClusterIP` — the only public entry point is the ingress-nginx controller's `LoadBalancer` Service, bound to a pre-provisioned static IP (`pip-support-ticket-ingress` in the AKS node resource group) so the hostname is known before the first deploy.
+`api-gateway`, the three domain Services, and the client are all `ClusterIP` — the only public entry point is the ingress-nginx controller's `LoadBalancer` Service, bound to a pre-provisioned static IP (`pip-support-ticket-ingress` in the AKS node resource group) so the hostname is known before the first deploy.
 
 ## Deploy identity (`ci-deployer-rbac.yaml`)
 

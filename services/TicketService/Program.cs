@@ -1,6 +1,8 @@
 using Contracts.Auth;
 using Contracts.Data;
+using Contracts.ExceptionHandling;
 using Contracts.Observability;
+using Contracts.Resilience;
 using Contracts.Security;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
@@ -16,6 +18,7 @@ using TicketService.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.AddServiceObservability("TicketService");
+builder.Services.AddSharedTracing("TicketService");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
@@ -53,6 +56,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
+builder.Services.AddSharedResiliencePipelines();
 builder.Services.AddScoped<TokenService>();
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddSingleton(builder.Configuration.GetSection("Frontend").Get<FrontendSettings>() ?? new FrontendSettings());
@@ -63,6 +67,7 @@ builder.Services.AddMassTransit(x =>
     x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("ticket-service", false));
 
     x.AddConsumer<ResponseAddedConsumer>();
+    x.AddFaultLogging();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -72,7 +77,7 @@ builder.Services.AddMassTransit(x =>
             h.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
         });
 
-        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+        cfg.UseResilientFaultHandling(builder.Configuration);
 
         cfg.ConfigureEndpoints(context);
     });
@@ -82,7 +87,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddProblemDetails();
+builder.Services.AddSharedExceptionHandling();
 
 builder.Services.AddCors(options =>
 {

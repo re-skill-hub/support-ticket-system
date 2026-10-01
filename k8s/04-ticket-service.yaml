@@ -103,5 +103,15 @@ spec:
   selector:
     app: ticket-service
   ports:
-    - port: 5101
+    # "debug" (5101) is so you can hit this service directly from the host for debugging —
+    # Docker Desktop's Kubernetes exposes LoadBalancer Services on localhost directly. "internal"
+    # (8080, matching the container's own port) is what nginx/api-gateway inside the cluster
+    # actually connect to — a Service only listens on ports it declares, so without this the
+    # in-cluster hostname:8080 that nginx.conf and the gateway's cluster config both use would
+    # be unreachable even though the Service itself is up.
+    - name: debug
+      port: 5101
+      targetPort: 8080
+    - name: internal
+      port: 8080
       targetPort: 8080

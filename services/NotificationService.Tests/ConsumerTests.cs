@@ -1,5 +1,6 @@
 using Contracts.Constants;
 using Contracts.Events;
+using Contracts.ExceptionHandling;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -120,7 +121,7 @@ public class ConsumerTests
         var consumer = new ResponseAddedConsumer(db, new Mock<ILogger<ResponseAddedConsumer>>().Object);
         var message = new ResponseAdded(Guid.NewGuid(), Guid.NewGuid(), "agent-1", Roles.SupportAgent, "We're on it.", DateTime.UtcNow);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => consumer.Consume(CreateConsumeContext(message).Object));
+        await Assert.ThrowsAsync<ProjectionNotReadyException>(() => consumer.Consume(CreateConsumeContext(message).Object));
 
         Assert.Empty(db.Notifications);
     }
@@ -180,7 +181,7 @@ public class ConsumerTests
         var consumer = new TicketStatusChangedConsumer(db, new Mock<ILogger<TicketStatusChangedConsumer>>().Object);
         var message = new TicketStatusChanged(Guid.NewGuid(), "customer-1", "Open", "InProgress", DateTime.UtcNow);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => consumer.Consume(CreateConsumeContext(message).Object));
+        await Assert.ThrowsAsync<ProjectionNotReadyException>(() => consumer.Consume(CreateConsumeContext(message).Object));
 
         Assert.Empty(db.Notifications);
     }

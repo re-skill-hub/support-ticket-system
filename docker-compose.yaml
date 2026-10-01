@@ -159,6 +159,33 @@ services:
     networks:
       - support-net
 
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/ApiGateway/Dockerfile
+    environment:
+      Cors__AllowedOrigin: http://localhost:4200
+      ReverseProxy__Clusters__ticketServiceCluster__Destinations__destination1__Address: http://ticket-service:8080
+      ReverseProxy__Clusters__responseServiceCluster__Destinations__destination1__Address: http://response-service:8080
+      ReverseProxy__Clusters__notificationServiceCluster__Destinations__destination1__Address: http://notification-service:8080
+    ports:
+      - "127.0.0.1:5100:8080"
+    depends_on:
+      ticket-service:
+        condition: service_healthy
+      response-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - support-net
+
   client:
     build:
       context: .
@@ -166,11 +193,7 @@ services:
     ports:
       - "127.0.0.1:4200:80"
     depends_on:
-      ticket-service:
-        condition: service_healthy
-      response-service:
-        condition: service_healthy
-      notification-service:
+      api-gateway:
         condition: service_healthy
     networks:
       - support-net

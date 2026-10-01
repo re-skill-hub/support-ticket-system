@@ -1,10 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { NgbModal, NgbPagination } from '@ng-bootstrap/ng-bootstrap';
+import { RequestState } from '../../../core/http/request-state';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserManagementService } from '../../../core/services/user-management.service';
 import { Role } from '../../../types/auth.types';
-import { ManagedUser } from '../../../types/user-management.types';
+import { ManagedUser, PagedResult } from '../../../types/user-management.types';
 import { NewUserModal } from './new-user-modal/new-user-modal';
 
 const PAGE_SIZE = 20;
@@ -20,10 +21,11 @@ export class UserList implements OnInit {
   private readonly modal = inject(NgbModal);
   readonly authService = inject(AuthService);
 
-  readonly loading = signal(true);
-  readonly loadError = signal(false);
-  readonly users = signal<ManagedUser[]>([]);
-  readonly totalCount = signal(0);
+  private readonly request = new RequestState<PagedResult<ManagedUser>>();
+  readonly loading = this.request.loading;
+  readonly loadError = this.request.error;
+  readonly users = computed(() => this.request.data()?.items ?? []);
+  readonly totalCount = computed(() => this.request.data()?.totalCount ?? 0);
   readonly roleFilter = signal<Role | 'All'>('All');
   readonly page = signal(1);
   readonly pageSize = PAGE_SIZE;
@@ -80,25 +82,13 @@ export class UserList implements OnInit {
   }
 
   retry(): void {
-    this.load();
+    this.request.retry();
   }
 
   private load(): void {
-    this.loading.set(true);
-    this.loadError.set(false);
     const roleFilter = this.roleFilter();
-    this.userManagementService
-      .list(roleFilter === 'All' ? undefined : roleFilter, this.page(), this.pageSize)
-      .subscribe({
-        next: (result) => {
-          this.users.set(result.items);
-          this.totalCount.set(result.totalCount);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.loading.set(false);
-          this.loadError.set(true);
-        },
-      });
+    this.request.run(() =>
+      this.userManagementService.list(roleFilter === 'All' ? undefined : roleFilter, this.page(), this.pageSize),
+    );
   }
 }

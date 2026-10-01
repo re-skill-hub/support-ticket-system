@@ -1,6 +1,8 @@
 using Contracts.Auth;
 using Contracts.Data;
+using Contracts.ExceptionHandling;
 using Contracts.Observability;
+using Contracts.Resilience;
 using Contracts.Security;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -11,12 +13,16 @@ using Serilog;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.AddServiceObservability("ResponseService");
+builder.Services.AddSharedTracing("ResponseService");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure()));
 
 builder.Services.AddSharedJwtBearer(builder.Configuration);
 builder.Services.AddServiceHealthChecks(builder.Configuration);
+builder.Services.AddSharedResiliencePipelines();
 
 builder.Services.AddMassTransit(x =>
 {
@@ -24,6 +30,7 @@ builder.Services.AddMassTransit(x =>
 
     x.AddConsumer<TicketCreatedConsumer>();
     x.AddConsumer<TicketStatusChangedConsumer>();
+    x.AddFaultLogging();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -33,7 +40,7 @@ builder.Services.AddMassTransit(x =>
             h.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
         });
 
-        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+        cfg.UseResilientFaultHandling(builder.Configuration);
 
         cfg.ConfigureEndpoints(context);
     });
@@ -43,7 +50,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddProblemDetails();
+builder.Services.AddSharedExceptionHandling();
 
 builder.Services.AddCors(options =>
 {

@@ -1,11 +1,15 @@
 using System.Security.Claims;
 using Contracts.Constants;
 using Contracts.Events;
+using Contracts.Resilience;
 using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Polly.Registry;
 using ResponseService.Controllers;
 using ResponseService.Data;
 using ResponseService.Dtos;
@@ -30,7 +34,11 @@ public class ResponsesControllerTests
         string userId,
         string role)
     {
-        var controller = new ResponsesController(db, publishEndpoint.Object);
+        var resiliencePipelines = new ServiceCollection()
+            .AddSharedResiliencePipelines()
+            .BuildServiceProvider()
+            .GetRequiredService<ResiliencePipelineProvider<string>>();
+        var controller = new ResponsesController(db, publishEndpoint.Object, resiliencePipelines, NullLogger<ResponsesController>.Instance);
         var user = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim(ClaimTypes.NameIdentifier, userId),
@@ -51,7 +59,7 @@ public class ResponsesControllerTests
         using var db = CreateDbContext();
         var controller = CreateController(db, new Mock<IPublishEndpoint>(), "customer-1", Roles.Customer);
 
-        var result = await controller.Create(new CreateResponseRequest(Guid.NewGuid(), "Hello"));
+        var result = await controller.Create(new CreateResponseRequest(Guid.NewGuid(), "Hello"), CancellationToken.None);
 
         Assert.IsType<NotFoundObjectResult>(result.Result);
     }
@@ -66,7 +74,7 @@ public class ResponsesControllerTests
 
         var controller = CreateController(db, new Mock<IPublishEndpoint>(), "customer-2", Roles.Customer);
 
-        var result = await controller.Create(new CreateResponseRequest(ticketId, "Hello"));
+        var result = await controller.Create(new CreateResponseRequest(ticketId, "Hello"), CancellationToken.None);
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -82,7 +90,7 @@ public class ResponsesControllerTests
         var publishEndpoint = new Mock<IPublishEndpoint>();
         var controller = CreateController(db, publishEndpoint, "customer-1", Roles.Customer);
 
-        var result = await controller.Create(new CreateResponseRequest(ticketId, "Any update?"));
+        var result = await controller.Create(new CreateResponseRequest(ticketId, "Any update?"), CancellationToken.None);
 
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         var dto = Assert.IsType<ResponseDto>(created.Value);
@@ -106,7 +114,7 @@ public class ResponsesControllerTests
 
         var controller = CreateController(db, new Mock<IPublishEndpoint>(), "agent-1", Roles.SupportAgent);
 
-        var result = await controller.Create(new CreateResponseRequest(ticketId, "We're on it."));
+        var result = await controller.Create(new CreateResponseRequest(ticketId, "We're on it."), CancellationToken.None);
 
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         var dto = Assert.IsType<ResponseDto>(created.Value);
@@ -124,7 +132,7 @@ public class ResponsesControllerTests
 
         var controller = CreateController(db, new Mock<IPublishEndpoint>(), "admin-1", Roles.Admin);
 
-        var result = await controller.Create(new CreateResponseRequest(ticketId, "We're on it."));
+        var result = await controller.Create(new CreateResponseRequest(ticketId, "We're on it."), CancellationToken.None);
 
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         var dto = Assert.IsType<ResponseDto>(created.Value);

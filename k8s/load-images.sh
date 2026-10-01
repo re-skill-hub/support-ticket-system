@@ -21,6 +21,7 @@ IMAGES=(
   "ticket-service:local"
   "response-service:local"
   "notification-service:local"
+  "api-gateway:local"
   "client:local"
 )
 

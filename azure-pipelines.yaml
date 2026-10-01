@@ -18,6 +18,8 @@ parameters:
         dockerfile: services/ResponseService/Dockerfile
       - name: notification-service
         dockerfile: services/NotificationService/Dockerfile
+      - name: api-gateway
+        dockerfile: services/ApiGateway/Dockerfile
       - name: client
         dockerfile: client/Dockerfile
 
@@ -160,7 +162,10 @@ stages:
     displayName: Build and push images
     dependsOn: Validate
     # Pull requests only run Validate — pushing images and deploying must wait until the PR is merged.
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    # Gate on the branch itself, not just "not a PR build" — a manually-queued run (Build.Reason
+    # = 'Manual') against an unmerged feature branch would otherwise sail through this check and
+    # deploy unreviewed code, since only PR *validation* builds carry Build.Reason='PullRequest'.
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     jobs:
       - job: BuildAndPush
         timeoutInMinutes: 15
@@ -193,7 +198,8 @@ stages:
   - stage: DeployDev
     displayName: Deploy development
     dependsOn: BuildAndPush
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    # See the branch-gate comment on the BuildAndPush stage above.
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     jobs:
       - deployment: DeployDev
         environment: support-ticketing-dev
@@ -274,7 +280,8 @@ stages:
   - stage: SmokeTest
     displayName: Smoke test
     dependsOn: DeployDev
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    # See the branch-gate comment on the BuildAndPush stage above.
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     jobs:
       - job: SmokeTest
         timeoutInMinutes: 5
@@ -290,7 +297,8 @@ stages:
   - stage: E2ETest
     displayName: End-to-end test
     dependsOn: SmokeTest
-    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    # See the branch-gate comment on the BuildAndPush stage above.
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     jobs:
       - job: E2ETest
         timeoutInMinutes: 15

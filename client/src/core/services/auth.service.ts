@@ -25,6 +25,23 @@ export class AuthService {
   readonly isAdmin = computed(() => this.currentUser()?.role === 'Admin');
   readonly isStaff = computed(() => this.isAgent() || this.isAdmin());
 
+  // Guards error.interceptor.ts against handling the same session expiry more than once: if
+  // several requests are in flight when the session lapses, they all fail with 401 around the
+  // same time, but only the first should show a toast and trigger logout+redirect.
+  private sessionExpiryInFlight = false;
+
+  isSessionExpiring(): boolean {
+    return this.sessionExpiryInFlight;
+  }
+
+  beginSessionExpiry(): void {
+    this.sessionExpiryInFlight = true;
+  }
+
+  endSessionExpiry(): void {
+    this.sessionExpiryInFlight = false;
+  }
+
   register(request: RegisterRequest): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(`${this.baseUrl}/register`, request)

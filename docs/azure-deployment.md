@@ -2,7 +2,7 @@
 
 This runbook deploys the support-ticket system to one low-cost development AKS environment through Azure DevOps. The `k8s/azure-dev` overlay intentionally uses single-replica SQL Server and RabbitMQ for a self-contained trial. Replace those dependencies with Azure SQL and a managed RabbitMQ-compatible broker before production.
 
-![End-to-end deployment diagram: GitHub triggers an Azure DevOps pipeline that reads secrets from Key Vault, authenticates to AKS as the least-privilege ci-deployer identity, and pushes images through ACR; inside AKS, ingress-nginx and cert-manager terminate TLS in front of the client/services/RabbitMQ architecture, with Container Insights streaming logs and metrics to Log Analytics](architecture-diagram-e2e.svg)
+![End-to-end deployment diagram: GitHub triggers an Azure DevOps pipeline that reads secrets from Key Vault, authenticates to AKS as the least-privilege ci-deployer identity, and pushes images through ACR; inside AKS, ingress-nginx and cert-manager terminate TLS in front of the client/gateway/services/RabbitMQ architecture, with Container Insights streaming logs and metrics to Log Analytics](architecture-diagram.svg)
 
 **Cost notes — nothing here is free while running, even on a trial subscription:**
 - The client's public `LoadBalancer` (and any static public IP attached to it, including the one provisioned for TLS below) bills hourly for as long as it exists, not just when it's idle "leftover cruft" — delete it with the rest of the resource group when not actively demoing.
@@ -69,9 +69,11 @@ Grant the service connection identity `AcrPush` on the registry. The AKS kubelet
 
 Create an environment named `support-ticketing-dev` and authorize the pipeline to use it. Then add an approval check so deployments require a human sign-off: open the environment, **Approvals and checks** → **+** → **Approvals**, and add at least one approver. The CLI has no support for this; it must be done in the portal. Without it, any run that reaches the `DeployDev` stage — including the first run after a merge to `main` — deploys to the shared dev cluster with no checkpoint.
 
+**Current status on the live trial environment: an Approval check exists but is disabled.** It was created once, then turned off, so `DeployDev` currently runs unattended on every push to `main` — nothing above is stopping it. Re-enabling it (environment → **Approvals and checks** → the existing Approval entry → toggle it back on) is a one-portal-click action; it's called out here rather than done automatically because it's a deployment-cadence decision, not a code change.
+
 Also register the AKS namespace as a **Kubernetes resource** on the environment (Environments → `support-ticketing-dev` → Resources → Kubernetes, pointing at the `support-ticketing-dev` namespace in the cluster) — this is what makes the portal show live pod/rollout status for `DeployDev` runs, separately from the approval check above.
 
-Pull requests only run the `Validate` stage (build/test) — `BuildAndPush`, `DeployDev`, `SmokeTest`, and `E2ETest` are skipped for PR-triggered runs (`Build.Reason == 'PullRequest'`), so opening a PR never pushes images or touches the cluster.
+Pull requests only run the `Validate` stage (build/test) — `BuildAndPush`, `DeployDev`, `SmokeTest`, and `E2ETest` are skipped for PR-triggered runs (`Build.Reason == 'PullRequest'`) **and** for any run whose source branch isn't `main` (`Build.SourceBranch == 'refs/heads/main'`), so opening a PR never pushes images or touches the cluster, and neither does a manually-queued run against a feature branch. See `docs/ci-cd-pipeline.md` for why both checks exist.
 
 Create a variable group named `support-ticketing-dev` with these non-secret values:
 
@@ -152,7 +154,7 @@ az aks enable-addons --resource-group $RESOURCE_GROUP --name $AKS_NAME \
 
 ## 4. Run the pipeline
 
-Commit and push `azure-pipelines.yaml`. It has five stages — **Validate** (build/test everything, including a `kubectl kustomize` render check of the overlay), **BuildAndPush**, **DeployDev**, **SmokeTest**, **E2ETest** (Playwright against the just-deployed environment) — with `BuildAndPush`/`DeployDev`/`SmokeTest`/`E2ETest` skipped on pull-request-triggered runs. Full stage-by-stage detail, the per-service templating, and the deploy identity swap are documented in `docs/ci-cd-pipeline.md`.
+Commit and push `azure-pipelines.yaml`. It has five stages — **Validate** (build/test everything, including a `kubectl kustomize` render check of the overlay), **BuildAndPush**, **DeployDev**, **SmokeTest**, **E2ETest** (Playwright against the just-deployed environment) — with `BuildAndPush`/`DeployDev`/`SmokeTest`/`E2ETest` skipped on pull-request-triggered runs and on any run not targeting `main`. Full stage-by-stage detail, the per-service templating, and the deploy identity swap are documented in `docs/ci-cd-pipeline.md`.
 
 Before the first successful pipeline run, `clientEndpoint` must be known because it is used for CORS configuration and the smoke test. This is solved by pre-provisioning a static public IP before the first deploy, rather than waiting to discover whatever ephemeral IP a `LoadBalancer` Service happens to get — see the TLS section below. `clientEndpoint` is then set to that IP's `https://<ip>.nip.io` hostname, no trailing slash.
 
