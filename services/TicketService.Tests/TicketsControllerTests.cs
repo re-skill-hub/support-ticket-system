@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Contracts.Constants;
 using Contracts.Events;
+using Contracts.Resilience;
 using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -8,7 +9,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Polly.Registry;
 using TicketService.Controllers;
 using TicketService.Data;
 using TicketService.Dtos;
@@ -40,7 +43,11 @@ public class TicketsControllerTests
         string userId,
         string role)
     {
-        var controller = new TicketsController(db, publishEndpoint.Object, userManager);
+        var resiliencePipelines = new ServiceCollection()
+            .AddSharedResiliencePipelines()
+            .BuildServiceProvider()
+            .GetRequiredService<ResiliencePipelineProvider<string>>();
+        var controller = new TicketsController(db, publishEndpoint.Object, userManager, resiliencePipelines, NullLogger<TicketsController>.Instance);
         var user = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim(ClaimTypes.NameIdentifier, userId),
@@ -78,7 +85,7 @@ public class TicketsControllerTests
         var publishEndpoint = new Mock<IPublishEndpoint>();
         var controller = CreateController(db, userManager, publishEndpoint, "customer-1", Roles.Customer);
 
-        var result = await controller.Create(new CreateTicketRequest("Broken printer", "Won't power on", TicketPriority.High, TicketCategory.Technical));
+        var result = await controller.Create(new CreateTicketRequest("Broken printer", "Won't power on", TicketPriority.High, TicketCategory.Technical), CancellationToken.None);
 
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         var response = Assert.IsType<TicketResponse>(created.Value);
@@ -383,7 +390,7 @@ public class TicketsControllerTests
         var publishEndpoint = new Mock<IPublishEndpoint>();
         var controller = CreateController(db, userManager, publishEndpoint, "agent-1", Roles.SupportAgent);
 
-        var result = await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.InProgress));
+        var result = await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.InProgress), CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Equal(TicketStatus.InProgress, Assert.IsType<TicketResponse>(ok.Value).Status);
@@ -413,7 +420,7 @@ public class TicketsControllerTests
         var publishEndpoint = new Mock<IPublishEndpoint>();
         var controller = CreateController(db, userManager, publishEndpoint, "admin-1", Roles.Admin);
 
-        var result = await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.InProgress));
+        var result = await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.InProgress), CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Equal(TicketStatus.InProgress, Assert.IsType<TicketResponse>(ok.Value).Status);
@@ -442,7 +449,7 @@ public class TicketsControllerTests
 
         var controller = CreateController(db, userManager, new Mock<IPublishEndpoint>(), "agent-1", Roles.SupportAgent);
 
-        await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.Closed));
+        await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.Closed), CancellationToken.None);
 
         var reloaded = await db.Tickets.FirstAsync(t => t.Id == ticket.Id);
         Assert.Equal(TicketStatus.Closed, reloaded.Status);
@@ -464,7 +471,7 @@ public class TicketsControllerTests
         var publishEndpoint = new Mock<IPublishEndpoint>();
         var controller = CreateController(db, userManager, publishEndpoint, "agent-1", Roles.SupportAgent);
 
-        var result = await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.Open));
+        var result = await controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.Open), CancellationToken.None);
 
         Assert.IsType<OkObjectResult>(result.Result);
         publishEndpoint.Verify(p => p.Publish(

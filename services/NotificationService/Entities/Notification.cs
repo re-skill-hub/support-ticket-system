@@ -1,6 +1,8 @@
+using Contracts.Messaging;
+
 namespace NotificationService.Entities;
 
-public class Notification
+public class Notification : IHasSourceMessageId
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string RecipientUserId { get; set; } = string.Empty;

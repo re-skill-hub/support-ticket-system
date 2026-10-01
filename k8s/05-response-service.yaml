@@ -88,5 +88,11 @@ spec:
   selector:
     app: response-service
   ports:
-    - port: 5102
+    # See the comment on ticket-service's Service (k8s/04-ticket-service.yaml) — "debug" is for
+    # hitting the service directly from the host; "internal" is what nginx/api-gateway use.
+    - name: debug
+      port: 5102
+      targetPort: 8080
+    - name: internal
+      port: 8080
       targetPort: 8080

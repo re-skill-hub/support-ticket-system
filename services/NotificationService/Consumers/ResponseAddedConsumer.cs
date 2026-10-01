@@ -1,5 +1,7 @@
 using Contracts.Constants;
 using Contracts.Events;
+using Contracts.ExceptionHandling;
+using Contracts.Messaging;
 using Contracts.Observability;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +24,7 @@ public class ResponseAddedConsumer(AppDbContext db, ILogger<ResponseAddedConsume
         }
 
         var messageId = context.MessageId ?? Guid.NewGuid();
-        if (await db.Notifications.AnyAsync(n => n.SourceMessageId == messageId))
+        if (await ConsumedMessageGuard.AlreadyProcessedAsync(db.Notifications, messageId))
         {
             logger.LogInformation("Duplicate delivery of ResponseAdded {MessageId}; skipping.", messageId);
             return;
@@ -31,8 +33,8 @@ public class ResponseAddedConsumer(AppDbContext db, ILogger<ResponseAddedConsume
         var metric = await db.TicketMetrics.FirstOrDefaultAsync(m => m.TicketId == message.TicketId);
         if (metric is null)
         {
-            logger.LogWarning("Received ResponseAdded for unknown TicketMetric {TicketId}.", message.TicketId);
-            throw new InvalidOperationException($"TicketMetric {message.TicketId} has not been projected yet.");
+            logger.LogWarning("Received ResponseAdded for unknown TicketMetric {TicketId}; will retry.", message.TicketId);
+            throw new ProjectionNotReadyException($"TicketMetric {message.TicketId} has not been projected yet.");
         }
 
         if (metric.FirstResponseAtUtc is null)

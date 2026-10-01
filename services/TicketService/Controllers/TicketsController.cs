@@ -2,11 +2,13 @@ using Contracts.Auth;
 using Contracts.Constants;
 using Contracts.Events;
 using Contracts.Observability;
+using Contracts.Resilience;
 using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Polly.Registry;
 using TicketService.Data;
 using TicketService.Dtos;
 using TicketService.Entities;
@@ -16,11 +18,39 @@ namespace TicketService.Controllers;
 [ApiController]
 [Route("api/tickets")]
 [Authorize]
-public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint, UserManager<ApplicationUser> userManager) : ControllerBase
+public class TicketsController(
+    AppDbContext db,
+    IPublishEndpoint publishEndpoint,
+    UserManager<ApplicationUser> userManager,
+    ResiliencePipelineProvider<string> resiliencePipelines,
+    ILogger<TicketsController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Publishes an event with the shared "publish" resilience pipeline (retry only — no
+    /// circuit breaker/timeout, so a failure surfaces fast rather than holding the HTTP request
+    /// open). The DB write this follows has already committed, so a final failure here is logged
+    /// Critical and surfaced as 503: the primary operation succeeded but a downstream side effect
+    /// (notifications, projections) did not. Known residual risk, not fixed here: this isn't
+    /// atomic with the DB write (no transactional outbox) — see plan.
+    /// </summary>
+    private async Task<ActionResult?> TryPublishAsync(Func<CancellationToken, Task> publish, Guid ticketId, string eventName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var pipeline = resiliencePipelines.GetPipeline(ResiliencePipelines.Publish);
+            await pipeline.ExecuteAsync(ct => new ValueTask(publish(ct)), cancellationToken);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex, "Failed to publish {EventName} for ticket {TicketId} after DB commit; event is lost.", eventName, ticketId);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "The ticket was saved, but a downstream update could not be sent. Please refresh shortly." });
+        }
+    }
+
     [HttpPost]
     [Authorize(Roles = Roles.Customer)]
-    public async Task<ActionResult<TicketResponse>> Create(CreateTicketRequest request)
+    public async Task<ActionResult<TicketResponse>> Create(CreateTicketRequest request, CancellationToken cancellationToken)
     {
         var ticket = new Ticket
         {
@@ -32,15 +62,21 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
         };
 
         db.Tickets.Add(ticket);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
 
-        await publishEndpoint.Publish(new TicketCreated(
-            ticket.Id,
-            ticket.CustomerId,
-            ticket.Title,
-            ticket.Status.ToString(),
-            ticket.CreatedAtUtc),
-            context => context.CorrelationId = HttpContext.GetCorrelationId());
+        var publishFailure = await TryPublishAsync(
+            ct => publishEndpoint.Publish(new TicketCreated(
+                ticket.Id,
+                ticket.CustomerId,
+                ticket.Title,
+                ticket.Status.ToString(),
+                ticket.CreatedAtUtc),
+                context => context.CorrelationId = HttpContext.GetCorrelationId(), ct),
+            ticket.Id, nameof(TicketCreated), cancellationToken);
+        if (publishFailure is not null)
+        {
+            return publishFailure;
+        }
 
         return CreatedAtAction(nameof(GetById), new { id = ticket.Id }, TicketResponse.FromEntity(ticket));
     }
@@ -140,7 +176,7 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
 
     [HttpPatch("{id:guid}/status")]
     [Authorize(Roles = Roles.StaffRoles)]
-    public async Task<ActionResult<TicketResponse>> UpdateStatus(Guid id, UpdateTicketStatusRequest request)
+    public async Task<ActionResult<TicketResponse>> UpdateStatus(Guid id, UpdateTicketStatusRequest request, CancellationToken cancellationToken)
     {
         var ticket = await db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
         if (ticket is null)
@@ -161,15 +197,21 @@ public class TicketsController(AppDbContext db, IPublishEndpoint publishEndpoint
             ticket.ClosedAtUtc = DateTime.UtcNow;
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
 
-        await publishEndpoint.Publish(new TicketStatusChanged(
-            ticket.Id,
-            ticket.CustomerId,
-            previousStatus.ToString(),
-            ticket.Status.ToString(),
-            ticket.UpdatedAtUtc),
-            context => context.CorrelationId = HttpContext.GetCorrelationId());
+        var publishFailure = await TryPublishAsync(
+            ct => publishEndpoint.Publish(new TicketStatusChanged(
+                ticket.Id,
+                ticket.CustomerId,
+                previousStatus.ToString(),
+                ticket.Status.ToString(),
+                ticket.UpdatedAtUtc),
+                context => context.CorrelationId = HttpContext.GetCorrelationId(), ct),
+            ticket.Id, nameof(TicketStatusChanged), cancellationToken);
+        if (publishFailure is not null)
+        {
+            return publishFailure;
+        }
 
         return Ok(TicketResponse.FromEntity(ticket));
     }

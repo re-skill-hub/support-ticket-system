@@ -109,7 +109,7 @@ public class AuthController(
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to send password reset email");
+                Log.Error(ex, "EmailDeliveryFailed reset-password to={Email}", user.Email);
             }
         }
 

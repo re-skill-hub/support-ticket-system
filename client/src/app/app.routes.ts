@@ -72,6 +72,11 @@ export const routes: Routes = [
       import('../features/notifications/notification-list/notification-list').then((m) => m.NotificationList),
   },
   {
+    path: 'service-unavailable',
+    loadComponent: () =>
+      import('../features/service-unavailable/service-unavailable').then((m) => m.ServiceUnavailable),
+  },
+  {
     path: '**',
     loadComponent: () => import('../features/not-found/not-found').then((m) => m.NotFound),
   },

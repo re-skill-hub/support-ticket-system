@@ -1,4 +1,5 @@
 using Contracts.Events;
+using Contracts.ExceptionHandling;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -84,13 +85,13 @@ public class ConsumerTests
     }
 
     [Fact]
-    public async Task TicketStatusChangedConsumer_UnknownTicketRef_DoesNotThrow()
+    public async Task TicketStatusChangedConsumer_UnknownTicketRef_ThrowsForRetry()
     {
         using var db = CreateDbContext();
         var consumer = new TicketStatusChangedConsumer(db, new Mock<ILogger<TicketStatusChangedConsumer>>().Object);
         var message = new TicketStatusChanged(Guid.NewGuid(), "customer-1", "Open", "InProgress", DateTime.UtcNow);
 
-        await consumer.Consume(CreateConsumeContext(message).Object);
+        await Assert.ThrowsAsync<ProjectionNotReadyException>(() => consumer.Consume(CreateConsumeContext(message).Object));
 
         Assert.Empty(db.TicketRefs);
     }

@@ -36,6 +36,8 @@ The fastest path. No SDKs, Node, or Angular CLI required locally — they're bak
 
 RabbitMQ's management UI is available at **http://localhost:15672** (login with the `RABBITMQ_USER`/`RABBITMQ_PASS` you set in `.env`). Password-reset emails land in Mailpit's UI at **http://localhost:8025** rather than a real inbox (see "Forgot password" below).
 
+An `api-gateway` container also starts (port 5100) — a YARP reverse proxy in front of the three backend services. Every `/api/*` call the app makes actually routes through it: `client/nginx.conf` proxies to `api-gateway:8080`, not to the three backend services directly (see [`docs/distributed-resilience.md`](distributed-resilience.md)). You can also exercise it directly from the host, e.g. `curl http://localhost:5100/api/tickets`.
+
 Data persists across restarts via named volumes (`sqlserver-data`, `rabbitmq-data`) — `docker compose down && docker compose up` (no rebuild) keeps everything you created.
 
 > **Note on the local-agent seed:** `LOCAL_AGENT_EMAIL`/`LOCAL_AGENT_PASSWORD` are **not** restricted to Development — `DbSeeder.SeedLocalAgentAsync` in `services/TicketService/Data/DbSeeder.cs` seeds this account whenever both values are non-empty, with no `ASPNETCORE_ENVIRONMENT` check at all. It's documented here as a "local convenience" account because that's how this repo's Compose/k8s setups use it, but the same mechanism is what seeds the support-agent account on the live AKS deployment too (see Track 3).
@@ -76,7 +78,7 @@ npx playwright install chromium
 npm run e2e
 ```
 
-Set both `LOCAL_AGENT_*` values in `.env` first. The suite registers a customer, creates a ticket, signs in as the local agent to assign/reply/close it, then verifies the customer notification and updated dashboard metrics — using unique generated test data and waiting for event-driven projections to catch up.
+Set both `LOCAL_AGENT_*` **and** both `INITIAL_ADMIN_*` values in `.env` first — two spec files run: `ticket-workflow.spec.ts` (registers a customer, creates a ticket, signs in as the local agent to assign/reply/close it, then verifies the customer notification and updated dashboard metrics, using unique generated test data and polling for event-driven projections to catch up) and `user-management.spec.ts` (signs in as the initial Admin, creates a user via "Manage Users", changes their role, deactivates them, and confirms the deactivated account is actually blocked from logging in — not just hidden in the UI). Both run against real running services, no mocking.
 
 ### Tracing a request across services
 
@@ -100,12 +102,13 @@ Closer to the real deployment topology (separate pods/Services/Deployments inste
 
 **Prerequisites:**
 - Docker Desktop with Kubernetes enabled (Settings → Kubernetes → Enable Kubernetes), context `docker-desktop` selected (`kubectl config use-context docker-desktop`).
-- The four images built locally with the tags the manifests reference:
+- The five images built locally with the tags the manifests reference (Bash; on Windows run these from Git Bash or WSL, or translate to PowerShell `docker build` calls one at a time):
 
-  ```sh
+  ```bash
   docker build -t ticket-service:local -f services/TicketService/Dockerfile .
   docker build -t response-service:local -f services/ResponseService/Dockerfile .
   docker build -t notification-service:local -f services/NotificationService/Dockerfile .
+  docker build -t api-gateway:local -f services/ApiGateway/Dockerfile .
   docker build -t client:local -f client/Dockerfile .
   ```
 
@@ -116,13 +119,13 @@ Docker Desktop can provision its Kubernetes cluster with either **kubeadm** (sin
 This matters for `imagePullPolicy: Never`, which these manifests use to force pulling from local images instead of a registry:
 
 - **kubeadm**: the single node shares the host's Docker image cache directly — a `docker build` is immediately visible, no extra step.
-- **kind**: each node is its own container with its own isolated containerd image store. A `docker build` on the host is **not** visible inside either node until explicitly loaded in. Docker Desktop doesn't bundle the `kind` CLI, so `k8s/load-images.sh` replicates `kind load docker-image` (`docker save` piped into each node container, then `ctr -n k8s.io images import` inside it):
+- **kind**: each node is its own container with its own isolated containerd image store. A `docker build` on the host is **not** visible inside either node until explicitly loaded in. Docker Desktop doesn't bundle the `kind` CLI, so `k8s/load-images.sh` (Bash) replicates `kind load docker-image` (`docker save` piped into each node container, then `ctr -n k8s.io images import` inside it):
 
-  ```sh
+  ```bash
   ./k8s/load-images.sh
   ```
 
-  Run this once after each `docker build` of any of the four images, before `kubectl apply`. It no-ops safely under kubeadm.
+  Run this once after each `docker build` of any of the five images, before `kubectl apply`. It no-ops safely under kubeadm.
 
 ### Deploy
 
@@ -130,11 +133,11 @@ This matters for `imagePullPolicy: Never`, which these manifests use to force pu
 2. If on kind, run `./k8s/load-images.sh` after building the images.
 3. `kubectl apply -f k8s/`
 4. `kubectl get pods -w` until everything is `Running`/`Ready` (SQL Server takes ~30-60s to accept connections on first start).
-5. Open **http://localhost:4200**. The client's nginx proxies every `/api/*` call to the right backend Service by path (`auth`/`tickets`/`users` → TicketService, `responses` → ResponseService, `metrics`/`notifications` → NotificationService) — the Angular app itself uses one relative `/api` base URL, not per-service ports. Each backend Service is `type: LoadBalancer` bound to `localhost` (Docker Desktop's Kubernetes exposes `LoadBalancer` Services on `localhost` directly, no separate ingress controller needed) purely so you can hit a service's port directly for debugging; the app itself never needs those ports.
+5. Open **http://localhost:4200**. The client's nginx proxies every `/api/*` call to the right backend Service by path (`auth`/`tickets`/`users` → TicketService, `responses` → ResponseService, `metrics`/`notifications` → NotificationService) — the Angular app itself uses one relative `/api` base URL, not per-service ports. Each backend Service is `type: LoadBalancer` bound to `localhost` (Docker Desktop's Kubernetes exposes `LoadBalancer` Services on `localhost` directly, no separate ingress controller needed) purely so you can hit a service's port directly for debugging; the app itself never needs those ports. The API Gateway (`k8s/09-api-gateway.yaml`, port 5100) also deploys and is fully functional, but nginx doesn't route through it yet — same status as Track 1.
 
 ### Tear down
 
-```sh
+```bash
 kubectl delete -f k8s/
 ```
 
@@ -142,7 +145,7 @@ Leaves the PersistentVolumeClaims' underlying data around only as long as Docker
 
 ### Moving to a real cluster
 
-See Track 3 below — `k8s/azure-dev/` is a kustomize overlay of these same base manifests, adapted for AKS (managed images via ACR, Ingress + TLS instead of `LoadBalancer`, Key-Vault-backed secrets).
+See Track 3 below. `k8s/azure-dev/` is a **separate, hand-maintained manifest set** for AKS (managed images via ACR, `ClusterIP` + ingress-nginx/cert-manager instead of `LoadBalancer`, Key-Vault-backed secrets, resource limits already set on every app Deployment) — despite the name, it is not a true kustomize `bases:`/`patches:` overlay *of* the files in this section; it duplicates their shape by hand rather than inheriting from them, so a change to one does not propagate to the other. It also does not yet include the API Gateway — adding it there is tracked in [`docs/distributed-resilience.md`](distributed-resilience.md) alongside the nginx-cutover decision.
 
 ---
 
@@ -189,18 +192,20 @@ Full detail — Key Vault secret names, the `ci-deployer` RBAC bootstrap, TLS se
 support-ticket-system/
 ├── docker-compose.yaml
 ├── azure-pipelines.yaml
-├── k8s/                       # base manifests (Docker Desktop) + azure-dev/ overlay (AKS)
+├── k8s/                       # base manifests (Docker Desktop) + azure-dev/ (separate, hand-maintained AKS manifest set)
 ├── services/
-│   ├── Contracts/            # shared event DTOs, JWT wiring, observability — no domain entities
-│   ├── TicketService/        # Identity + ticket CRUD
+│   ├── Contracts/            # shared event DTOs, JWT wiring, observability, exception handling, resilience — no domain entities
+│   ├── TicketService/        # Identity + ticket CRUD + admin user management
 │   ├── ResponseService/      # responses + ticket read-model
-│   └── NotificationService/  # notifications + metrics
+│   ├── NotificationService/  # notifications + metrics
+│   └── ApiGateway/           # YARP reverse proxy — every /api/* call routes through here
 └── client/                   # Angular app
 ```
 
 ## Where to go next
 
 - `docs/requirement/gap-analysis.md` — how this implementation compares to the original requirements, plus a forward-looking "Scope for further improvement" section.
+- `docs/distributed-resilience.md` — the exception-handling, resilience, API Gateway, and tracing work: what was added, why, and what's deliberately deferred.
 - `docs/azure-deployment.md` — the full AKS trial-deployment runbook.
 - `docs/ci-cd-pipeline.md` — the Azure Pipelines internals and RBAC deploy identity in detail.
 - `docs/postman/README.md` — API testing via the included Postman collection.
