@@ -5,7 +5,7 @@ import { firstValueFrom, of, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { ConnectivityService } from '../services/connectivity.service';
 import { ToastService } from '../services/toast.service';
-import { SILENT_AUTH_CHECK, errorInterceptor } from './error.interceptor';
+import { SILENT_AUTH_CHECK, SILENT_BOOTSTRAP_CHECK, errorInterceptor } from './error.interceptor';
 
 describe('errorInterceptor', () => {
   let toastService: { show: ReturnType<typeof vi.fn> };
@@ -158,6 +158,23 @@ describe('errorInterceptor', () => {
     await expect(run(error, context)).rejects.toBeTruthy();
 
     expect(toastService.show).toHaveBeenCalledWith('Something went wrong (500).', 'danger');
+  });
+
+  it('suppresses the toast entirely for a silent bootstrap check, even on a non-401 status', async () => {
+    const error = new HttpErrorResponse({ status: 500 });
+    const context = new HttpContext().set(SILENT_BOOTSTRAP_CHECK, true);
+    await expect(run(error, context)).rejects.toBeTruthy();
+
+    expect(toastService.show).not.toHaveBeenCalled();
+  });
+
+  it('suppresses the toast for a silent bootstrap check on status 0 (e.g. backend still cold-starting)', async () => {
+    const error = new HttpErrorResponse({ status: 0 });
+    const context = new HttpContext().set(SILENT_BOOTSTRAP_CHECK, true);
+    await expect(run(error, context)).rejects.toBeTruthy();
+
+    expect(toastService.show).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 
   it('shows a permission message for 403', async () => {

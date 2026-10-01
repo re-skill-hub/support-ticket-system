@@ -7,11 +7,25 @@ import { ConnectivityService } from '../services/connectivity.service';
 import { ToastService } from '../services/toast.service';
 
 /**
- * Set on a request to suppress the global error toast/logout entirely — for checks
- * like AuthService.initialize()'s GET /me, where a 401 just means "not logged in yet"
- * (e.g. every anonymous visit to /login) and isn't a real error to surface.
+ * Set on AuthService.login()'s request to suppress the global error toast for a 401 only — a
+ * wrong-password response is handled locally by the login form (see login.ts), so it shouldn't
+ * also pop a toast. Any other status (429, 500, a timeout, a network error, ...) still surfaces
+ * via the toast as normal: those aren't "wrong password", they're real failures the user acting
+ * on the login form should be told about.
  */
 export const SILENT_AUTH_CHECK = new HttpContextToken<boolean>(() => false);
+
+/**
+ * Set on AuthService.initialize()'s GET /me — the background check at app bootstrap that
+ * rehydrates session state before the first navigation. For an anonymous/not-yet-authenticated
+ * visitor this is *expected* to fail, and it can fail with any status: a clean 401, or
+ * status 0 if the backend/gateway is still coming up (e.g. a k8s cold start) while the browser
+ * itself reports online. Unlike SILENT_AUTH_CHECK, this suppresses the toast unconditionally,
+ * regardless of status — there's no user-facing form here to show an inline error instead, and
+ * nothing actionable the user could do about a background check failing before they've even
+ * tried to log in.
+ */
+export const SILENT_BOOTSTRAP_CHECK = new HttpContextToken<boolean>(() => false);
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toastService = inject(ToastService);
@@ -21,6 +35,12 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: unknown) => {
+      // Must come before every other branch, including TimeoutError: this request is expected to
+      // fail for an anonymous/not-yet-authenticated visitor, no matter how it fails.
+      if (req.context.get(SILENT_BOOTSTRAP_CHECK)) {
+        return throwError(() => error);
+      }
+
       if (error instanceof TimeoutError) {
         toastService.show('Request timed out. Please try again.', 'danger');
         return throwError(() => error);

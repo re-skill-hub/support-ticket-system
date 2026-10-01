@@ -10,7 +10,7 @@ import {
   RegisterRequest,
   ResetPasswordRequest,
 } from '../../types/auth.types';
-import { SILENT_AUTH_CHECK } from '../interceptors/error.interceptor';
+import { SILENT_AUTH_CHECK, SILENT_BOOTSTRAP_CHECK } from '../interceptors/error.interceptor';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -78,7 +78,7 @@ export class AuthService {
     return firstValueFrom(
       this.http
         .get<AuthResponse>(`${this.baseUrl}/me`, {
-          context: new HttpContext().set(SILENT_AUTH_CHECK, true),
+          context: new HttpContext().set(SILENT_BOOTSTRAP_CHECK, true),
         })
         .pipe(
           tap((response) => this.setSession(response)),

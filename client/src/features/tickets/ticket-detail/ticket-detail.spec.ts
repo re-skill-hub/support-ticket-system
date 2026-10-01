@@ -31,6 +31,7 @@ describe('TicketDetail', () => {
     category: 'Technical',
     customerId: 'u1',
     assignedAgentId: null,
+    assignedAgentName: null,
     createdAtUtc: '2026-01-01T00:00:00Z',
     updatedAtUtc: '2026-01-01T00:00:00Z',
     closedAtUtc: null,

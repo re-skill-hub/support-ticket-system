@@ -39,6 +39,7 @@
               Category
             </th>
             <th appSortable="status" [direction]="sortColumn() === 'status' ? sortDirection() : ''" (sort)="onSort($event)">Status</th>
+            <th>Assigned To</th>
             <th
               appSortable="createdAtUtc"
               [direction]="sortColumn() === 'createdAtUtc' ? sortDirection() : ''"
@@ -52,7 +53,7 @@
         <tbody>
           @if (pagedTickets().length === 0) {
             <tr>
-              <td colspan="6" class="no-data">No tickets match your search.</td>
+              <td colspan="7" class="no-data">No tickets match your search.</td>
             </tr>
           } @else {
             @for (ticket of pagedTickets(); track ticket.id) {
@@ -61,6 +62,13 @@
                 <td><app-priority-chip [priority]="ticket.priority" /></td>
                 <td>{{ ticket.category }}</td>
                 <td><app-status-chip [status]="ticket.status" /></td>
+                <td>
+                  @if (ticket.assignedAgentName) {
+                    {{ ticket.assignedAgentName }}
+                  } @else {
+                    <span class="badge text-bg-secondary">Unassigned</span>
+                  }
+                </td>
                 <td [title]="ticket.createdAtUtc | date: 'medium'">{{ ticket.createdAtUtc | relativeTime }}</td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-primary" [routerLink]="['/tickets', ticket.id]">View</a>

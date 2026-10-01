@@ -124,8 +124,8 @@
                 <td>{{ ticket.category }}</td>
                 <td><app-status-chip [status]="ticket.status" /></td>
                 <td>
-                  @if (ticket.assignedAgentId) {
-                    <span class="text-secondary small">Yes</span>
+                  @if (ticket.assignedAgentName) {
+                    <span class="text-secondary small">{{ ticket.assignedAgentName }}</span>
                   } @else {
                     <span class="badge text-bg-secondary">Unassigned</span>
                   }

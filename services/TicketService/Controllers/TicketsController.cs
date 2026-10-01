@@ -91,7 +91,8 @@ public class TicketsController(
             .OrderByDescending(t => t.CreatedAtUtc)
             .ToListAsync();
 
-        return Ok(tickets.Select(TicketResponse.FromEntity));
+        var agentNames = await ResolveAgentNamesAsync(tickets);
+        return Ok(tickets.Select(t => TicketResponse.FromEntity(t, AgentName(t, agentNames))));
     }
 
     [HttpGet]
@@ -136,8 +137,30 @@ public class TicketsController(
         }
 
         var tickets = await query.OrderByDescending(t => t.CreatedAtUtc).ToListAsync();
-        return Ok(tickets.Select(TicketResponse.FromEntity));
+        var agentNames = await ResolveAgentNamesAsync(tickets);
+        return Ok(tickets.Select(t => TicketResponse.FromEntity(t, AgentName(t, agentNames))));
     }
+
+    /// <summary>
+    /// Batch-resolves AssignedAgentId -> FullName for a page of tickets in a single query, so
+    /// listing endpoints don't do one user lookup per ticket. Display-only — the Ticket entity
+    /// itself only ever stores the id.
+    /// </summary>
+    private async Task<Dictionary<string, string>> ResolveAgentNamesAsync(IEnumerable<Ticket> tickets)
+    {
+        var agentIds = tickets.Select(t => t.AssignedAgentId).Where(id => id is not null).Distinct().ToList();
+        if (agentIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await userManager.Users
+            .Where(u => agentIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+    }
+
+    private static string? AgentName(Ticket ticket, Dictionary<string, string> agentNames) =>
+        ticket.AssignedAgentId is not null && agentNames.TryGetValue(ticket.AssignedAgentId, out var name) ? name : null;
 
     [HttpGet("agents")]
     [Authorize(Roles = Roles.StaffRoles)]
@@ -171,7 +194,8 @@ public class TicketsController(
             return Forbid();
         }
 
-        return Ok(TicketResponse.FromEntity(ticket));
+        var agentNames = await ResolveAgentNamesAsync([ticket]);
+        return Ok(TicketResponse.FromEntity(ticket, AgentName(ticket, agentNames)));
     }
 
     [HttpPatch("{id:guid}/status")]
@@ -187,7 +211,8 @@ public class TicketsController(
         var previousStatus = ticket.Status;
         if (previousStatus == request.Status)
         {
-            return Ok(TicketResponse.FromEntity(ticket));
+            var agentNames = await ResolveAgentNamesAsync([ticket]);
+            return Ok(TicketResponse.FromEntity(ticket, AgentName(ticket, agentNames)));
         }
 
         ticket.Status = request.Status;
@@ -213,7 +238,8 @@ public class TicketsController(
             return publishFailure;
         }
 
-        return Ok(TicketResponse.FromEntity(ticket));
+        var updatedAgentNames = await ResolveAgentNamesAsync([ticket]);
+        return Ok(TicketResponse.FromEntity(ticket, AgentName(ticket, updatedAgentNames)));
     }
 
     [HttpPatch("{id:guid}/assign")]
@@ -250,6 +276,7 @@ public class TicketsController(
         ticket.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        return Ok(TicketResponse.FromEntity(ticket));
+        var agentNames = await ResolveAgentNamesAsync([ticket]);
+        return Ok(TicketResponse.FromEntity(ticket, AgentName(ticket, agentNames)));
     }
 }

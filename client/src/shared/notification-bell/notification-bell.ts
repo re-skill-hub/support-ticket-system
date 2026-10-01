@@ -28,6 +28,7 @@ export class NotificationBell {
       return;
     }
 
+    this.notificationService.resetUnreadCount();
     this.loading.set(true);
     this.notificationService.getMine().subscribe({
       next: (notifications) => {

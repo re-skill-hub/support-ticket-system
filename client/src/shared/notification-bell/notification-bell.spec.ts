@@ -12,6 +12,7 @@ describe('NotificationBell', () => {
     getMine: ReturnType<typeof vi.fn>;
     markAsRead: ReturnType<typeof vi.fn>;
     refreshUnreadCount: ReturnType<typeof vi.fn>;
+    resetUnreadCount: ReturnType<typeof vi.fn>;
   };
 
   const unread: Notification = {
@@ -30,6 +31,7 @@ describe('NotificationBell', () => {
       getMine: vi.fn().mockReturnValue(of([unread, read])),
       markAsRead: vi.fn().mockReturnValue(of(undefined)),
       refreshUnreadCount: vi.fn(),
+      resetUnreadCount: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
@@ -57,6 +59,20 @@ describe('NotificationBell', () => {
     expect(notificationService.getMine).toHaveBeenCalled();
     expect(fixture.componentInstance.preview()).toEqual([unread, read]);
     expect(fixture.componentInstance.loading()).toBe(false);
+  });
+
+  it('clears the unread badge count as soon as the dropdown opens', () => {
+    const fixture = createComponent();
+    fixture.componentInstance.onOpenChange(true);
+
+    expect(notificationService.resetUnreadCount).toHaveBeenCalled();
+  });
+
+  it('does not clear the unread badge count when the dropdown closes', () => {
+    const fixture = createComponent();
+    fixture.componentInstance.onOpenChange(false);
+
+    expect(notificationService.resetUnreadCount).not.toHaveBeenCalled();
   });
 
   it('does not reload the preview when the dropdown closes', () => {

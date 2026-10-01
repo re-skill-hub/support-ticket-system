@@ -8,6 +8,7 @@ export interface Ticket {
   description: string;
   customerId: string;
   assignedAgentId: string | null;
+  assignedAgentName: string | null;
   status: TicketStatus;
   priority: TicketPriority;
   category: TicketCategory;

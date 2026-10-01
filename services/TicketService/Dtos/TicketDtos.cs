@@ -21,6 +21,7 @@ public record TicketResponse(
     string Description,
     string CustomerId,
     string? AssignedAgentId,
+    string? AssignedAgentName,
     TicketStatus Status,
     TicketPriority Priority,
     TicketCategory Category,
@@ -28,12 +29,15 @@ public record TicketResponse(
     DateTime UpdatedAtUtc,
     DateTime? ClosedAtUtc)
 {
-    public static TicketResponse FromEntity(Ticket ticket) => new(
+    // assignedAgentName is a display-only lookup resolved by the caller (see
+    // TicketsController.ResolveAgentNamesAsync) — a Ticket entity only stores the agent's id.
+    public static TicketResponse FromEntity(Ticket ticket, string? assignedAgentName = null) => new(
         ticket.Id,
         ticket.Title,
         ticket.Description,
         ticket.CustomerId,
         ticket.AssignedAgentId,
+        assignedAgentName,
         ticket.Status,
         ticket.Priority,
         ticket.Category,
