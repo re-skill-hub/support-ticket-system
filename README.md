@@ -25,7 +25,7 @@ Services communicate only through RabbitMQ events (`TicketCreated`, `TicketStatu
 
 That diagram covers the full picture end to end: the client/services/database/event-bus architecture *and* the Azure DevOps pipeline, Key Vault, ACR, and AKS cluster it deploys to. For the local Docker Compose topology specifically (what actually runs when you follow the Quick start below — including the API Gateway container, Mailpit, and every port binding), see the local deployment diagram:
 
-![Local deployment diagram: Docker Compose network with the Angular client, API gateway, three backend services, SQL Server, RabbitMQ, and Mailpit, showing every exposed port](docs/architecture-diagram-local.svg)
+![Local deployment diagram: Docker Compose network with the Angular client, API gateway, three backend services, SQL Server, and RabbitMQ, showing every exposed port](docs/architecture-diagram-local.svg)
 
 Every service exposes `GET /health/live` (process-alive only, checked by its own Docker healthcheck) and `GET /health/ready` (SQL Server + RabbitMQ dependency check, used by Kubernetes readiness probes and the API Gateway's active health checks) — split so a transient dependency blip pulls a pod/route out of rotation instead of restarting it. Every service also logs structured JSON to the console enriched with a `CorrelationId` that flows from the originating HTTP request through every downstream consumer — so a single ticket's event chain is traceable across all services' logs — and emits OpenTelemetry traces (console exporter by default; see `docs/distributed-resilience.md`).
 

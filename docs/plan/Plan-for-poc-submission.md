@@ -178,9 +178,8 @@ front of the same client/gateway/services/RabbitMQ architecture.
 
 [Embed architecture-diagram-local.png here]
 This second diagram is the same architecture specifically as it runs locally via Docker Compose
-— every container, every service-to-service connection, and every port exposed to the host
-(e.g. the gateway on 5100, Mailpit's UI on 8025) — useful as a quick reference for anyone running
-the stack themselves.
+— every container, every service-to-service connection, and every port exposed to the host (e.g.
+the gateway on 5100) — useful as a quick reference for anyone running the stack themselves.
 
 4. Key Features
 - Ticket creation with category and priority; customer-facing "My Tickets" list
