@@ -10,7 +10,7 @@ import {
   RegisterRequest,
   ResetPasswordRequest,
 } from '../../types/auth.types';
-import { SILENT_AUTH_CHECK, SILENT_BOOTSTRAP_CHECK } from '../interceptors/error.interceptor';
+import { SILENT_AUTH_CHECK, SILENT_BOOTSTRAP_CHECK, SILENT_INLINE_ERRORS } from '../interceptors/error.interceptor';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -44,7 +44,9 @@ export class AuthService {
 
   register(request: RegisterRequest): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.baseUrl}/register`, request)
+      .post<AuthResponse>(`${this.baseUrl}/register`, request, {
+        context: new HttpContext().set(SILENT_INLINE_ERRORS, true),
+      })
       .pipe(tap((response) => this.setSession(response)));
   }
 
@@ -57,11 +59,15 @@ export class AuthService {
   }
 
   forgotPassword(request: ForgotPasswordRequest): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/forgot-password`, request);
+    return this.http.post<void>(`${this.baseUrl}/forgot-password`, request, {
+      context: new HttpContext().set(SILENT_INLINE_ERRORS, true),
+    });
   }
 
   resetPassword(request: ResetPasswordRequest): Observable<void> {
-    return this.http.post<void>(`${this.baseUrl}/reset-password`, request);
+    return this.http.post<void>(`${this.baseUrl}/reset-password`, request, {
+      context: new HttpContext().set(SILENT_INLINE_ERRORS, true),
+    });
   }
 
   logout(): Observable<void> {

@@ -2,8 +2,17 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { NgbPagination } from '@ng-bootstrap/ng-bootstrap';
+import { RequestState } from '../../../core/http/request-state';
 import { TicketService } from '../../../core/services/ticket.service';
-import { Ticket, TicketCategory, TicketPriority, TicketStatus } from '../../../types/ticket.types';
+import {
+  TICKET_CATEGORIES,
+  TICKET_PRIORITIES,
+  TICKET_STATUSES,
+  Ticket,
+  TicketCategory,
+  TicketPriority,
+  TicketStatus,
+} from '../../../types/ticket.types';
 import { StatusChip } from '../../../shared/status-chip/status-chip';
 import { PriorityChip } from '../../../shared/priority-chip/priority-chip';
 import { SortableHeader, SortDirection, SortEvent } from '../../../shared/sortable-header/sortable-header.directive';
@@ -21,8 +30,10 @@ const AGING_THRESHOLD_HOURS = 24;
 export class TicketQueue implements OnInit {
   private readonly ticketService = inject(TicketService);
 
-  readonly loading = signal(true);
-  readonly tickets = signal<Ticket[]>([]);
+  private readonly request = new RequestState<Ticket[]>();
+  readonly loading = this.request.loading;
+  readonly loadError = this.request.error;
+  readonly tickets = computed(() => this.request.data() ?? []);
   readonly searchTerm = signal('');
   readonly statusFilter = signal<TicketStatus | 'All'>('All');
   readonly priorityFilter = signal<TicketPriority | 'All'>('All');
@@ -35,9 +46,9 @@ export class TicketQueue implements OnInit {
   readonly page = signal(1);
   readonly pageSize = PAGE_SIZE;
 
-  readonly statuses: TicketStatus[] = ['Open', 'InProgress', 'Closed'];
-  readonly priorities: TicketPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
-  readonly categories: TicketCategory[] = ['General', 'Technical', 'Billing', 'Account'];
+  readonly statuses = TICKET_STATUSES;
+  readonly priorities = TICKET_PRIORITIES;
+  readonly categories = TICKET_CATEGORIES;
 
   readonly hasAnyTickets = computed(() => this.tickets().length > 0);
 
@@ -98,8 +109,11 @@ export class TicketQueue implements OnInit {
     this.sortDirection.set(direction);
   }
 
+  retry(): void {
+    this.request.retry();
+  }
+
   private load(): void {
-    this.loading.set(true);
     this.page.set(1);
     const statusFilter = this.statusFilter();
     const priorityFilter = this.priorityFilter();
@@ -108,22 +122,16 @@ export class TicketQueue implements OnInit {
     const fromDate = this.fromDateFilter();
     const toDate = this.toDateFilter();
 
-    this.ticketService
-      .getAll({
+    this.request.run(() =>
+      this.ticketService.getAll({
         status: statusFilter === 'All' ? undefined : statusFilter,
         priority: priorityFilter === 'All' ? undefined : priorityFilter,
         category: categoryFilter === 'All' ? undefined : categoryFilter,
         customerId: customerId || undefined,
         fromUtc: fromDate ? `${fromDate}T00:00:00.000Z` : undefined,
         toUtc: toDate ? `${toDate}T23:59:59.999Z` : undefined,
-      })
-      .subscribe({
-        next: (tickets) => {
-          this.tickets.set(tickets);
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+      }),
+    );
   }
 
   isAging(ticket: Ticket): boolean {

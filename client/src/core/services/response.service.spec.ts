@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { environment } from '../../environments/environment';
 import { TicketResponseMessage } from '../../types/response.types';
+import { SILENT_INLINE_ERRORS } from '../interceptors/error.interceptor';
 import { ResponseService } from './response.service';
 
 describe('ResponseService', () => {
@@ -35,6 +36,7 @@ describe('ResponseService', () => {
     const req = httpMock.expectOne(baseUrl);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ ticketId: 't1', message: message.message });
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush(message);
   });
 

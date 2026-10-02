@@ -27,6 +27,14 @@ export const SILENT_AUTH_CHECK = new HttpContextToken<boolean>(() => false);
  */
 export const SILENT_BOOTSTRAP_CHECK = new HttpContextToken<boolean>(() => false);
 
+/**
+ * Set on a request by a component that already shows its own inline error message (via
+ * extractMessage()) for every status, not just a specific one — unlike SILENT_AUTH_CHECK, which
+ * only covers 401 because the rest of its callers (login) still want other statuses to toast.
+ * Suppresses the global toast unconditionally so the user doesn't see the same message twice.
+ */
+export const SILENT_INLINE_ERRORS = new HttpContextToken<boolean>(() => false);
+
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toastService = inject(ToastService);
   const authService = inject(AuthService);
@@ -38,6 +46,12 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       // Must come before every other branch, including TimeoutError: this request is expected to
       // fail for an anonymous/not-yet-authenticated visitor, no matter how it fails.
       if (req.context.get(SILENT_BOOTSTRAP_CHECK)) {
+        return throwError(() => error);
+      }
+
+      // The component handling this request already shows its own inline message for any
+      // failure — don't also show the generic toast for the same error.
+      if (req.context.get(SILENT_INLINE_ERRORS)) {
         return throwError(() => error);
       }
 

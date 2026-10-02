@@ -30,7 +30,12 @@
         [class.is-invalid]="form.controls.password.invalid && form.controls.password.touched"
       />
       @if (form.controls.password.invalid && form.controls.password.touched) {
-        <div class="invalid-feedback">Password must be at least 8 characters.</div>
+        <div class="invalid-feedback">
+          Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and
+          a symbol.
+        </div>
+      } @else {
+        <div class="form-text">At least 8 characters, with uppercase, lowercase, a number, and a symbol.</div>
       }
     </div>
     <div class="mb-3">

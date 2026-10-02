@@ -1,6 +1,7 @@
 using Contracts.Auth;
 using Contracts.Constants;
 using Contracts.Events;
+using Contracts.ExceptionHandling;
 using Contracts.Observability;
 using Contracts.Resilience;
 using MassTransit;
@@ -215,6 +216,15 @@ public class TicketsController(
             return Ok(TicketResponse.FromEntity(ticket, AgentName(ticket, agentNames)));
         }
 
+        // Closed is terminal: once a ticket is closed, its status can never change again (not even
+        // back to Closed via a different path — the same-status check above already short-circuits
+        // that). Matches what the confirmation dialog on the client already tells the user before
+        // they close a ticket (ticket-detail.ts's onStatusSelected).
+        if (previousStatus == TicketStatus.Closed)
+        {
+            throw new ConflictException("This ticket is closed and its status can no longer be changed.");
+        }
+
         ticket.Status = request.Status;
         ticket.UpdatedAtUtc = DateTime.UtcNow;
         if (request.Status == TicketStatus.Closed)
@@ -242,6 +252,13 @@ public class TicketsController(
         return Ok(TicketResponse.FromEntity(ticket, AgentName(ticket, updatedAgentNames)));
     }
 
+    // IMPORTANT: `request` is only null when the HTTP request body is truly empty (zero bytes).
+    // A client sending a JSON body of `{}` — not the same as no body at all — model-binds to a
+    // non-null AssignTicketRequest with AgentId defaulting to null, which falls into the "explicit
+    // unassign" branch below instead of this method's "assign to me" shortcut. The Angular client
+    // (ticket.service.ts's assignToSelf()) must PATCH with a literal `null` body, not `{}`, to hit
+    // this branch — a unit test that calls this method directly (bypassing JSON model binding)
+    // cannot catch a regression here, since it can only ever pass a real null or a real object.
     [HttpPatch("{id:guid}/assign")]
     [Authorize(Roles = Roles.StaffRoles)]
     public async Task<ActionResult<TicketResponse>> Assign(Guid id, [FromBody] AssignTicketRequest? request = null)

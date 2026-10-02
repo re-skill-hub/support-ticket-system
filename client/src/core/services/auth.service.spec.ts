@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { environment } from '../../environments/environment';
 import { AuthResponse } from '../../types/auth.types';
-import { SILENT_BOOTSTRAP_CHECK } from '../interceptors/error.interceptor';
+import { SILENT_BOOTSTRAP_CHECK, SILENT_INLINE_ERRORS } from '../interceptors/error.interceptor';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
@@ -58,9 +58,28 @@ describe('AuthService', () => {
 
     const req = httpMock.expectOne(`${baseUrl}/register`);
     expect(req.request.method).toBe('POST');
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush(authResponse);
 
     expect(service.isAuthenticated()).toBe(true);
+  });
+
+  it('forgotPassword() marks its request as inline-error-handled', () => {
+    service.forgotPassword({ email: authResponse.email }).subscribe();
+
+    const req = httpMock.expectOne(`${baseUrl}/forgot-password`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
+    req.flush(null);
+  });
+
+  it('resetPassword() marks its request as inline-error-handled', () => {
+    service.resetPassword({ email: authResponse.email, token: 'tok', newPassword: 'New-Pw-123!' }).subscribe();
+
+    const req = httpMock.expectOne(`${baseUrl}/reset-password`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
+    req.flush(null);
   });
 
   it('flags SupportAgent role correctly', () => {

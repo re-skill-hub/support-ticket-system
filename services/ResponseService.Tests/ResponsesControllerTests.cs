@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Contracts.Constants;
 using Contracts.Events;
+using Contracts.ExceptionHandling;
 using Contracts.Resilience;
 using MassTransit;
 using Microsoft.AspNetCore.Http;
@@ -102,6 +103,21 @@ public class ResponsesControllerTests
             It.IsAny<IPipe<PublishContext<ResponseAdded>>>(),
             It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task Create_OnClosedTicket_ThrowsConflictException()
+    {
+        using var db = CreateDbContext();
+        var ticketId = Guid.NewGuid();
+        db.TicketRefs.Add(new TicketRef { TicketId = ticketId, CustomerId = "customer-1", Status = "Closed", CreatedAtUtc = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, new Mock<IPublishEndpoint>(), "customer-1", Roles.Customer);
+
+        await Assert.ThrowsAsync<ConflictException>(
+            () => controller.Create(new CreateResponseRequest(ticketId, "Still there?"), CancellationToken.None));
+        Assert.Empty(db.Responses);
     }
 
     [Fact]

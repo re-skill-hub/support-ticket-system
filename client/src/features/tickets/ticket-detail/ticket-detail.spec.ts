@@ -1,8 +1,8 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
-import { of } from 'rxjs';
+import { defer, of, throwError } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { ResponseService } from '../../../core/services/response.service';
 import { TicketService } from '../../../core/services/ticket.service';
@@ -109,6 +109,47 @@ describe('TicketDetail', () => {
     expect(component.loading()).toBe(false);
   });
 
+  afterEach(() => vi.useRealTimers());
+
+  it('retries loading responses through the "viewed right after creation" 404 race and recovers', async () => {
+    vi.useFakeTimers();
+    // defer() re-runs this factory on every subscription — retry() resubscribes to the same
+    // Observable it got back from getByTicket() rather than calling it again, same as a real
+    // HttpClient call re-issuing the request on each attempt (see timeout.interceptor.spec.ts).
+    let attempts = 0;
+    responseService.getByTicket.mockReturnValue(
+      defer(() => {
+        attempts++;
+        return attempts === 1 ? throwError(() => new HttpErrorResponse({ status: 404 })) : of([response]);
+      }),
+    );
+    const fixture = createComponent();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(attempts).toBe(2);
+    expect(fixture.componentInstance.responses()).toEqual([response]);
+  });
+
+  it('does not retry loading responses on a non-404 error, and fails quietly rather than crashing', async () => {
+    vi.useFakeTimers();
+    responseService.getByTicket.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+    const fixture = createComponent();
+
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(responseService.getByTicket).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.responses()).toEqual([]);
+  });
+
+  it('does not crash the page when loading staff agents fails', () => {
+    ticketService.getAgents.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+
+    const fixture = createStaffComponent();
+
+    expect(fixture.componentInstance.agents()).toEqual([]);
+  });
+
   it('sends a reply and reloads the thread and ticket', () => {
     const fixture = createComponent();
     const component = fixture.componentInstance;
@@ -131,6 +172,34 @@ describe('TicketDetail', () => {
     expect(responseService.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a reply over 4000 characters', () => {
+    const fixture = createComponent();
+    fixture.componentInstance.replyForm.controls.message.setValue('x'.repeat(4001));
+
+    expect(fixture.componentInstance.replyForm.controls.message.errors?.['maxlength']).toBeTruthy();
+  });
+
+  it('shows the server error inline when sending a reply fails', () => {
+    responseService.create.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409, error: { detail: 'This ticket is closed and can no longer receive new responses.' } })));
+    const fixture = createComponent();
+    const component = fixture.componentInstance;
+    component.replyForm.setValue({ message: 'One more thing' });
+
+    component.sendReply();
+
+    expect(component.replyError()).toBe('This ticket is closed and can no longer receive new responses.');
+    expect(component.sending()).toBe(false);
+  });
+
+  it('hides the reply form and shows a notice once the ticket is closed', () => {
+    ticketService.getById.mockReturnValue(of({ ...ticket, status: 'Closed' }));
+    const fixture = createComponent();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.reply-form')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('This ticket is closed and can no longer receive new replies.');
+  });
+
   it('assigns the ticket to the current agent', () => {
     const fixture = createComponent();
     fixture.componentInstance.assignToSelf();
@@ -138,6 +207,22 @@ describe('TicketDetail', () => {
     expect(ticketService.assignToSelf).toHaveBeenCalledWith('t1');
     expect(fixture.componentInstance.ticket()?.assignedAgentId).toBe('agent1');
     expect(toastService.show).toHaveBeenCalledWith('Ticket assigned to you.', 'success');
+  });
+
+  it('shows the server error inline when assigning to self fails', () => {
+    ticketService.assignToSelf.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { message: 'Could not assign.' } })));
+    const fixture = createComponent();
+    fixture.componentInstance.assignToSelf();
+
+    expect(fixture.componentInstance.ticketActionError()).toBe('Could not assign.');
+  });
+
+  it('shows the server error inline when reassigning fails', () => {
+    ticketService.assign.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { message: 'Could not reassign.' } })));
+    const fixture = createStaffComponent();
+    fixture.componentInstance.onAgentSelected('agent2');
+
+    expect(fixture.componentInstance.ticketActionError()).toBe('Could not reassign.');
   });
 
   it('labels the current user\'s own response as "You"', () => {
@@ -202,6 +287,32 @@ describe('TicketDetail', () => {
 
     expect(ticketService.updateStatus).toHaveBeenCalledWith('t1', { status: 'InProgress' });
     expect(toastService.show).toHaveBeenCalledWith('Status updated to InProgress.', 'success');
+  });
+
+  it('shows the server error inline and reverts the select when a status change fails', () => {
+    ticketService.updateStatus.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, error: { detail: 'This ticket is closed and its status can no longer be changed.' } })),
+    );
+    const fixture = createStaffComponent();
+    fixture.componentInstance.statusControl.setValue('InProgress');
+
+    expect(fixture.componentInstance.ticketActionError()).toBe(
+      'This ticket is closed and its status can no longer be changed.',
+    );
+    expect(fixture.componentInstance.statusControl.value).toBe('Open');
+  });
+
+  it('disables the status select once the ticket is Closed', () => {
+    ticketService.getById.mockReturnValue(of({ ...ticket, status: 'Closed' }));
+    const fixture = createStaffComponent();
+
+    expect(fixture.componentInstance.statusControl.disabled).toBe(true);
+  });
+
+  it('re-enables the status select for a ticket that is not Closed', () => {
+    const fixture = createStaffComponent();
+
+    expect(fixture.componentInstance.statusControl.disabled).toBe(false);
   });
 
   it('styles SupportAgent and Admin responses as staff, but not Customer', () => {
