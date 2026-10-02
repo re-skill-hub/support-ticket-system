@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
@@ -84,6 +84,33 @@ describe('TicketNew', () => {
       category: 'Technical',
     });
     expect(router.navigate).toHaveBeenCalledWith(['/tickets', createdTicket.id]);
+  });
+
+  it('rejects a description over 4000 characters', () => {
+    const fixture = createComponent();
+    fixture.componentInstance.form.controls.description.setValue('x'.repeat(4001));
+
+    expect(fixture.componentInstance.form.controls.description.errors?.['maxlength']).toBeTruthy();
+  });
+
+  it('shows the server error inline on failure (the global toast is suppressed by TicketService.create)', () => {
+    ticketService.create.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 400, error: { message: 'Description too long.' } })),
+    );
+    const fixture = createComponent();
+    const component = fixture.componentInstance;
+
+    component.form.setValue({
+      title: 'New ticket',
+      description: 'Something is broken',
+      priority: 'High',
+      category: 'Technical',
+    });
+
+    component.submit();
+
+    expect(component.errorMessage()).toBe('Description too long.');
+    expect(component.submitting()).toBe(false);
   });
 
   it('resets submitting on error so the form can be retried', () => {

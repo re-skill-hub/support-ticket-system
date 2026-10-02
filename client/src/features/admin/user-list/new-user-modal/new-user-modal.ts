@@ -3,7 +3,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { extractMessage } from '../../../../core/interceptors/error.interceptor';
 import { UserManagementService } from '../../../../core/services/user-management.service';
-import { Role } from '../../../../types/auth.types';
+import { ROLES, Role } from '../../../../types/auth.types';
+import { passwordComplexity } from '../../../../shared/validators/password.validator';
 
 @Component({
   selector: 'app-new-user-modal',
@@ -15,13 +16,13 @@ export class NewUserModal {
   private readonly fb = inject(FormBuilder);
   private readonly userManagementService = inject(UserManagementService);
 
-  readonly roles: Role[] = ['Customer', 'SupportAgent', 'Admin'];
+  readonly roles = ROLES;
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.group({
     email: this.fb.control('', [Validators.required, Validators.email]),
-    password: this.fb.control('', [Validators.required, Validators.minLength(8)]),
+    password: this.fb.control('', [Validators.required, passwordComplexity]),
     fullName: this.fb.control('', [Validators.required, Validators.maxLength(200)]),
     role: this.fb.control<Role>('Customer', [Validators.required]),
   });

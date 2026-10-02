@@ -70,6 +70,12 @@
       <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
       <span>Loading tickets…</span>
     </div>
+  } @else if (loadError()) {
+    <div class="app-empty-state">
+      <i class="bi bi-exclamation-triangle"></i>
+      <p class="mb-2">Couldn't load tickets.</p>
+      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="retry()">Retry</button>
+    </div>
   } @else if (!hasAnyTickets()) {
     <div class="app-empty-state">
       <i class="bi bi-inbox"></i>

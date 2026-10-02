@@ -1,13 +1,16 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
+import { retry, timer } from 'rxjs';
 import { ReactiveFormsModule, FormBuilder, FormControl, Validators } from '@angular/forms';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { AuthService } from '../../../core/services/auth.service';
 import { TicketService } from '../../../core/services/ticket.service';
 import { ResponseService } from '../../../core/services/response.service';
 import { ToastService } from '../../../core/services/toast.service';
-import { StaffSummary, Ticket, TicketStatus } from '../../../types/ticket.types';
+import { extractMessage } from '../../../core/interceptors/error.interceptor';
+import { StaffSummary, TICKET_STATUSES, Ticket, TicketStatus } from '../../../types/ticket.types';
 import { isStaffRole } from '../../../types/auth.types';
 import { TicketResponseMessage } from '../../../types/response.types';
 import { StatusChip } from '../../../shared/status-chip/status-chip';
@@ -34,13 +37,15 @@ export class TicketDetail implements OnInit {
   readonly ticket = signal<Ticket | null>(null);
   readonly responses = signal<TicketResponseMessage[]>([]);
   readonly sending = signal(false);
+  readonly replyError = signal<string | null>(null);
+  readonly ticketActionError = signal<string | null>(null);
   readonly agents = signal<StaffSummary[]>([]);
-  readonly statuses: TicketStatus[] = ['Open', 'InProgress', 'Closed'];
+  readonly statuses = TICKET_STATUSES;
   readonly statusControl = new FormControl<TicketStatus>('Open', { nonNullable: true });
   readonly isStaffRole = isStaffRole;
 
   readonly replyForm = this.fb.group({
-    message: this.fb.control('', [Validators.required]),
+    message: this.fb.control('', [Validators.required, Validators.maxLength(4000)]),
   });
 
   private get ticketId(): string {
@@ -57,6 +62,10 @@ export class TicketDetail implements OnInit {
     if (this.authService.isStaff()) {
       this.ticketService.getAgents().subscribe({
         next: (agents) => this.agents.set(agents),
+        // No error callback here previously meant RxJS re-threw an unhandled error on failure —
+        // Angular's GlobalErrorHandler then caught it and showed its own generic toast on top of
+        // whatever the real failure already surfaced. The agent dropdown just stays empty.
+        error: () => undefined,
       });
     }
   }
@@ -66,16 +75,50 @@ export class TicketDetail implements OnInit {
       next: (ticket) => {
         this.ticket.set(ticket);
         this.statusControl.setValue(ticket.status, { emitEvent: false });
+        this.syncStatusControlEnabled(ticket);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
   }
 
+  // A Closed ticket is terminal (TicketsController.UpdateStatus rejects any further transition
+  // out of it) — disable the control entirely rather than let staff pick a status the API will
+  // just reject.
+  private syncStatusControlEnabled(ticket: Ticket): void {
+    if (ticket.status === 'Closed') {
+      this.statusControl.disable({ emitEvent: false });
+    } else {
+      this.statusControl.enable({ emitEvent: false });
+    }
+  }
+
   loadResponses(): void {
-    this.responseService.getByTicket(this.ticketId).subscribe({
-      next: (responses) => this.responses.set(responses),
-    });
+    this.responseService
+      .getByTicket(this.ticketId)
+      .pipe(
+        // A ticket viewed right after creation can briefly 404 here: ResponseService projects
+        // its own TicketRef from the TicketCreated event over RabbitMQ, which can lag a moment
+        // behind the redirect into this page. Retry a few times before giving up rather than
+        // showing a confusing "Unknown ticket" error for a ticket that very much exists.
+        retry({
+          count: 3,
+          delay: (error: unknown, retryCount: number) => {
+            if (error instanceof HttpErrorResponse && error.status === 404) {
+              return timer(retryCount * 500);
+            }
+            throw error;
+          },
+        }),
+      )
+      .subscribe({
+        next: (responses) => this.responses.set(responses),
+        // No error callback here previously meant RxJS re-threw an unhandled error on failure —
+        // Angular's GlobalErrorHandler then caught it and showed its own generic toast on top of
+        // the "Unknown ticket" one from the global interceptor. If retries are exhausted, fail
+        // quietly: the thread just shows empty rather than crashing the page.
+        error: () => undefined,
+      });
   }
 
   sendReply(): void {
@@ -84,6 +127,7 @@ export class TicketDetail implements OnInit {
     }
 
     this.sending.set(true);
+    this.replyError.set(null);
     const { message } = this.replyForm.getRawValue();
 
     this.responseService.create({ ticketId: this.ticketId, message: message! }).subscribe({
@@ -94,7 +138,10 @@ export class TicketDetail implements OnInit {
         this.loadTicket();
         this.toastService.show('Reply sent.', 'success');
       },
-      error: () => this.sending.set(false),
+      error: (error: HttpErrorResponse) => {
+        this.sending.set(false);
+        this.replyError.set(extractMessage(error));
+      },
     });
   }
 
@@ -106,20 +153,24 @@ export class TicketDetail implements OnInit {
   }
 
   assignToSelf(): void {
+    this.ticketActionError.set(null);
     this.ticketService.assignToSelf(this.ticketId).subscribe({
       next: (ticket) => {
         this.ticket.set(ticket);
         this.toastService.show('Ticket assigned to you.', 'success');
       },
+      error: (error: HttpErrorResponse) => this.ticketActionError.set(extractMessage(error)),
     });
   }
 
   onAgentSelected(agentId: string): void {
+    this.ticketActionError.set(null);
     this.ticketService.assign(this.ticketId, { agentId: agentId || null }).subscribe({
       next: (ticket) => {
         this.ticket.set(ticket);
         this.toastService.show(agentId ? 'Ticket reassigned.' : 'Ticket unassigned.', 'success');
       },
+      error: (error: HttpErrorResponse) => this.ticketActionError.set(extractMessage(error)),
     });
   }
 
@@ -153,13 +204,16 @@ export class TicketDetail implements OnInit {
 
   private applyStatusChange(status: TicketStatus): void {
     const previousStatus = this.ticket()?.status;
+    this.ticketActionError.set(null);
     this.ticketService.updateStatus(this.ticketId, { status }).subscribe({
       next: (ticket) => {
         this.ticket.set(ticket);
         this.statusControl.setValue(ticket.status, { emitEvent: false });
+        this.syncStatusControlEnabled(ticket);
         this.toastService.show(`Status updated to ${ticket.status}.`, 'success');
       },
-      error: () => {
+      error: (error: HttpErrorResponse) => {
+        this.ticketActionError.set(extractMessage(error));
         if (previousStatus) {
           this.statusControl.setValue(previousStatus, { emitEvent: false });
         }

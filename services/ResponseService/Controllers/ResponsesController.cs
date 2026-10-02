@@ -1,6 +1,7 @@
 using Contracts.Auth;
 using Contracts.Constants;
 using Contracts.Events;
+using Contracts.ExceptionHandling;
 using Contracts.Observability;
 using Contracts.Resilience;
 using MassTransit;
@@ -36,6 +37,13 @@ public class ResponsesController(
         if (!User.IsStaff() && ticketRef.CustomerId != userId)
         {
             return Forbid();
+        }
+
+        // Kept current by TicketStatusChangedConsumer as TicketService's own status changes —
+        // mirrors TicketsController.UpdateStatus's "Closed is terminal" rule from the other side.
+        if (ticketRef.Status == "Closed")
+        {
+            throw new ConflictException("This ticket is closed and can no longer receive new responses.");
         }
 
         var authorRole = User.IsInRole(Roles.Admin) ? Roles.Admin

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Contracts.Constants;
 using Contracts.Events;
+using Contracts.ExceptionHandling;
 using Contracts.Resilience;
 using MassTransit;
 using Microsoft.AspNetCore.Builder;
@@ -524,6 +525,33 @@ public class TicketsControllerTests
         var reloaded = await db.Tickets.FirstAsync(t => t.Id == ticket.Id);
         Assert.Equal(TicketStatus.Closed, reloaded.Status);
         Assert.NotNull(reloaded.ClosedAtUtc);
+    }
+
+    [Fact]
+    public async Task UpdateStatus_FromClosed_ThrowsConflictException()
+    {
+        await using var app = await CreateAppAsync();
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var ticket = new Ticket { CustomerId = "customer-1", Title = "t", Description = "d", Status = TicketStatus.Closed };
+        db.Tickets.Add(ticket);
+        await db.SaveChangesAsync();
+
+        var publishEndpoint = new Mock<IPublishEndpoint>();
+        var controller = CreateController(db, userManager, publishEndpoint, "agent-1", Roles.SupportAgent);
+
+        await Assert.ThrowsAsync<ConflictException>(
+            () => controller.UpdateStatus(ticket.Id, new UpdateTicketStatusRequest(TicketStatus.Open), CancellationToken.None));
+
+        var reloaded = await db.Tickets.FirstAsync(t => t.Id == ticket.Id);
+        Assert.Equal(TicketStatus.Closed, reloaded.Status);
+        publishEndpoint.Verify(p => p.Publish(
+            It.IsAny<TicketStatusChanged>(),
+            It.IsAny<IPipe<PublishContext<TicketStatusChanged>>>(),
+            It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]

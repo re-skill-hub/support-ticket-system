@@ -1,6 +1,14 @@
-export type TicketStatus = 'Open' | 'InProgress' | 'Closed';
-export type TicketPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
-export type TicketCategory = 'General' | 'Technical' | 'Billing' | 'Account';
+// The type is derived from the array (not declared separately) so a dropdown/filter list built
+// from these constants can never fall out of sync with the type union — there's only one place
+// to add a new value, and every list that imports the constant picks it up automatically.
+export const TICKET_STATUSES = ['Open', 'InProgress', 'Closed'] as const;
+export type TicketStatus = (typeof TICKET_STATUSES)[number];
+
+export const TICKET_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
+export type TicketPriority = (typeof TICKET_PRIORITIES)[number];
+
+export const TICKET_CATEGORIES = ['General', 'Technical', 'Billing', 'Account'] as const;
+export type TicketCategory = (typeof TICKET_CATEGORIES)[number];
 
 export interface Ticket {
   id: string;

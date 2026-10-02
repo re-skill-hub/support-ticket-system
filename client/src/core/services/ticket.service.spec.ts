@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { environment } from '../../environments/environment';
 import { Ticket } from '../../types/ticket.types';
+import { SILENT_INLINE_ERRORS } from '../interceptors/error.interceptor';
 import { TicketService } from './ticket.service';
 
 describe('TicketService', () => {
@@ -42,6 +43,7 @@ describe('TicketService', () => {
 
     const req = httpMock.expectOne(baseUrl);
     expect(req.request.method).toBe('POST');
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush(ticket);
   });
 
@@ -50,6 +52,7 @@ describe('TicketService', () => {
 
     const req = httpMock.expectOne(`${baseUrl}/mine`);
     expect(req.request.method).toBe('GET');
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush([ticket]);
   });
 
@@ -58,6 +61,7 @@ describe('TicketService', () => {
 
     const req = httpMock.expectOne((r) => r.url === baseUrl);
     expect(req.request.params.keys().length).toBe(0);
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush([]);
   });
 
@@ -89,14 +93,21 @@ describe('TicketService', () => {
     const req = httpMock.expectOne(`${baseUrl}/t1/status`);
     expect(req.request.method).toBe('PATCH');
     expect(req.request.body).toEqual({ status: 'InProgress' });
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush({ ...ticket, status: 'InProgress' });
   });
 
-  it('assignToSelf() patches /tickets/:id/assign', () => {
+  it('assignToSelf() patches /tickets/:id/assign with no body at all', () => {
     service.assignToSelf('t1').subscribe();
 
     const req = httpMock.expectOne(`${baseUrl}/t1/assign`);
     expect(req.request.method).toBe('PATCH');
+    // Must be null, not {}: TicketsController.Assign only takes the "assign to me" branch when
+    // the body is truly absent (request is null) — an empty object deserializes to a non-null
+    // AssignTicketRequest with AgentId defaulting to null, which the controller reads as
+    // "explicit unassign" instead.
+    expect(req.request.body).toBeNull();
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush(ticket);
   });
 
@@ -106,6 +117,7 @@ describe('TicketService', () => {
     const req = httpMock.expectOne(`${baseUrl}/t1/assign`);
     expect(req.request.method).toBe('PATCH');
     expect(req.request.body).toEqual({ agentId: 'agent-1' });
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush(ticket);
   });
 

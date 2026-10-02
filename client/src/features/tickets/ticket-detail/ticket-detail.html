@@ -21,7 +21,12 @@
           <span class="category text-secondary small">{{ t.category }}</span>
 
           @if (authService.isStaff()) {
-            <select class="form-select form-select-sm status-select" [formControl]="statusControl" aria-label="Status">
+            <select
+              class="form-select form-select-sm status-select"
+              [formControl]="statusControl"
+              [title]="t.status === 'Closed' ? 'A closed ticket cannot be reopened.' : null"
+              aria-label="Status"
+            >
               @for (status of statuses; track status) {
                 <option [value]="status">{{ status }}</option>
               }
@@ -44,6 +49,10 @@
             </select>
           }
         </div>
+
+        @if (ticketActionError()) {
+          <div class="alert alert-danger mt-3 mb-0" role="alert">{{ ticketActionError() }}</div>
+        }
       </div>
     </div>
 
@@ -71,30 +80,43 @@
 
     <hr />
 
-    <form class="reply-form" [formGroup]="replyForm" (ngSubmit)="sendReply()" novalidate>
-      <div class="mb-3">
-        <label for="message" class="form-label">Write a reply</label>
-        <textarea
-          id="message"
-          class="form-control"
-          formControlName="message"
-          rows="3"
-          [class.is-invalid]="replyForm.controls.message.invalid && replyForm.controls.message.touched"
-          [attr.aria-invalid]="replyForm.controls.message.invalid && replyForm.controls.message.touched"
-          [attr.aria-describedby]="replyForm.controls.message.invalid && replyForm.controls.message.touched ? 'message-error' : null"
-        ></textarea>
-        @if (replyForm.controls.message.invalid && replyForm.controls.message.touched) {
-          <div class="invalid-feedback" id="message-error">A reply message is required.</div>
+    @if (t.status !== 'Closed') {
+      <form class="reply-form" [formGroup]="replyForm" (ngSubmit)="sendReply()" novalidate>
+        @if (replyError()) {
+          <div class="alert alert-danger" role="alert">{{ replyError() }}</div>
         }
-      </div>
-      <button type="submit" class="btn btn-primary" [disabled]="replyForm.invalid || sending()">
-        @if (sending()) {
-          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-        } @else {
-          Send
-        }
-      </button>
-    </form>
+        <div class="mb-3">
+          <label for="message" class="form-label">Write a reply</label>
+          <textarea
+            id="message"
+            class="form-control"
+            formControlName="message"
+            rows="3"
+            [class.is-invalid]="replyForm.controls.message.invalid && replyForm.controls.message.touched"
+            [attr.aria-invalid]="replyForm.controls.message.invalid && replyForm.controls.message.touched"
+            [attr.aria-describedby]="replyForm.controls.message.invalid && replyForm.controls.message.touched ? 'message-error' : null"
+          ></textarea>
+          @if (replyForm.controls.message.invalid && replyForm.controls.message.touched) {
+            <div class="invalid-feedback" id="message-error">
+              @if (replyForm.controls.message.errors?.['maxlength']) {
+                A reply must be at most 4000 characters.
+              } @else {
+                A reply message is required.
+              }
+            </div>
+          }
+        </div>
+        <button type="submit" class="btn btn-primary" [disabled]="replyForm.invalid || sending()">
+          @if (sending()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          } @else {
+            Send
+          }
+        </button>
+      </form>
+    } @else {
+      <p class="text-secondary small mb-0">This ticket is closed and can no longer receive new replies.</p>
+    }
   } @else {
     <div class="app-empty-state">
       <i class="bi bi-exclamation-circle"></i>

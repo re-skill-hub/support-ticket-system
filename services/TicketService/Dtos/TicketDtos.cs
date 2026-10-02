@@ -6,10 +6,10 @@ namespace TicketService.Dtos;
 public record CreateTicketRequest(
     [Required, MaxLength(200)] string Title,
     [Required, MaxLength(4000)] string Description,
-    TicketPriority Priority,
-    TicketCategory Category);
+    [EnumDataType(typeof(TicketPriority))] TicketPriority Priority,
+    [EnumDataType(typeof(TicketCategory))] TicketCategory Category);
 
-public record UpdateTicketStatusRequest(TicketStatus Status);
+public record UpdateTicketStatusRequest([Required, EnumDataType(typeof(TicketStatus))] TicketStatus Status);
 
 public record AssignTicketRequest(string? AgentId);
 

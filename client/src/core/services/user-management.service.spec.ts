@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { environment } from '../../environments/environment';
 import { ManagedUser, PagedResult } from '../../types/user-management.types';
+import { SILENT_INLINE_ERRORS } from '../interceptors/error.interceptor';
 import { UserManagementService } from './user-management.service';
 
 describe('UserManagementService', () => {
@@ -43,6 +44,7 @@ describe('UserManagementService', () => {
       (r) => r.url === baseUrl && r.params.get('page') === '1' && r.params.get('pageSize') === '20' && !r.params.has('role'),
     );
     expect(req.request.method).toBe('GET');
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush(pagedResult);
   });
 
@@ -74,6 +76,7 @@ describe('UserManagementService', () => {
     const req = httpMock.expectOne(baseUrl);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(request);
+    expect(req.request.context.get(SILENT_INLINE_ERRORS)).toBe(true);
     req.flush(user);
   });
 

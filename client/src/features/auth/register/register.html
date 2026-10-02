@@ -7,6 +7,10 @@
         <p class="text-secondary small mb-0">Support Ticketing System</p>
       </div>
 
+      @if (errorMessage()) {
+        <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+      }
+
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <div class="mb-3">
           <label for="fullName" class="form-label">Full name</label>
@@ -20,7 +24,13 @@
             [attr.aria-describedby]="form.controls.fullName.invalid && form.controls.fullName.touched ? 'fullName-error' : null"
           />
           @if (form.controls.fullName.invalid && form.controls.fullName.touched) {
-            <div class="invalid-feedback" id="fullName-error">Full name is required.</div>
+            <div class="invalid-feedback" id="fullName-error">
+              @if (form.controls.fullName.errors?.['maxlength']) {
+                Full name must be at most 200 characters.
+              } @else {
+                Full name is required.
+              }
+            </div>
           }
         </div>
 
@@ -54,9 +64,14 @@
             [attr.aria-describedby]="form.controls.password.invalid && form.controls.password.touched ? 'password-error' : 'password-hint'"
           />
           @if (form.controls.password.invalid && form.controls.password.touched) {
-            <div class="invalid-feedback" id="password-error">Password must be at least 8 characters.</div>
+            <div class="invalid-feedback" id="password-error">
+              Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number,
+              and a symbol.
+            </div>
           } @else {
-            <div class="form-text" id="password-hint">At least 8 characters</div>
+            <div class="form-text" id="password-hint">
+              At least 8 characters, with uppercase, lowercase, a number, and a symbol.
+            </div>
           }
         </div>
 

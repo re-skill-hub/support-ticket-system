@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { NgbPagination } from '@ng-bootstrap/ng-bootstrap';
+import { RequestState } from '../../../core/http/request-state';
 import { TicketService } from '../../../core/services/ticket.service';
 import { Ticket } from '../../../types/ticket.types';
 import { StatusChip } from '../../../shared/status-chip/status-chip';
@@ -20,8 +21,10 @@ const PAGE_SIZE = 10;
 export class TicketList implements OnInit {
   private readonly ticketService = inject(TicketService);
 
-  readonly loading = signal(true);
-  readonly tickets = signal<Ticket[]>([]);
+  private readonly request = new RequestState<Ticket[]>();
+  readonly loading = this.request.loading;
+  readonly loadError = this.request.error;
+  readonly tickets = computed(() => this.request.data() ?? []);
   readonly searchTerm = signal('');
   readonly sortColumn = signal('createdAtUtc');
   readonly sortDirection = signal<SortDirection>('desc');
@@ -44,13 +47,11 @@ export class TicketList implements OnInit {
   });
 
   ngOnInit(): void {
-    this.ticketService.getMine().subscribe({
-      next: (tickets) => {
-        this.tickets.set(tickets);
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
-    });
+    this.request.run(() => this.ticketService.getMine());
+  }
+
+  retry(): void {
+    this.request.retry();
   }
 
   applyFilter(value: string): void {

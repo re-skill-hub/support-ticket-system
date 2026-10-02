@@ -4,7 +4,7 @@ import { NgbModal, NgbPagination } from '@ng-bootstrap/ng-bootstrap';
 import { RequestState } from '../../../core/http/request-state';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserManagementService } from '../../../core/services/user-management.service';
-import { Role } from '../../../types/auth.types';
+import { ROLES, Role } from '../../../types/auth.types';
 import { ManagedUser, PagedResult } from '../../../types/user-management.types';
 import { NewUserModal } from './new-user-modal/new-user-modal';
 
@@ -30,7 +30,7 @@ export class UserList implements OnInit {
   readonly page = signal(1);
   readonly pageSize = PAGE_SIZE;
 
-  readonly roles: Role[] = ['Customer', 'SupportAgent', 'Admin'];
+  readonly roles = ROLES;
 
   ngOnInit(): void {
     this.load();

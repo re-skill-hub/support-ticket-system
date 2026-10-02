@@ -44,7 +44,7 @@ describe('NewUserModal', () => {
   function fillValidForm(fixture: ReturnType<typeof createComponent>) {
     fixture.componentInstance.form.setValue({
       email: 'new@example.test',
-      password: 'Password123',
+      password: 'Password123!',
       fullName: 'New User',
       role: 'Customer',
     });
@@ -58,11 +58,18 @@ describe('NewUserModal', () => {
 
     expect(userManagementService.create).toHaveBeenCalledWith({
       email: 'new@example.test',
-      password: 'Password123',
+      password: 'Password123!',
       fullName: 'New User',
       role: 'Customer',
     });
     expect(activeModal.close).toHaveBeenCalledWith(createdUser);
+  });
+
+  it('rejects a password missing a symbol, matching the backend Identity policy', () => {
+    const fixture = createComponent();
+    fixture.componentInstance.form.controls.password.setValue('Password123');
+
+    expect(fixture.componentInstance.form.controls.password.errors?.['requiresNonAlphanumeric']).toBe(true);
   });
 
   it('dismisses the modal on cancel', () => {
