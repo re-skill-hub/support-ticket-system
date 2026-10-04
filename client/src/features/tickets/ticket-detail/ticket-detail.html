@@ -36,12 +36,7 @@
               <button type="button" class="btn btn-outline-secondary btn-sm" (click)="assignToSelf()">Assign to me</button>
             }
 
-            <select
-              class="form-select form-select-sm assign-select"
-              aria-label="Assign to agent"
-              [value]="t.assignedAgentId ?? ''"
-              (change)="onAgentSelected($any($event.target).value)"
-            >
+            <select class="form-select form-select-sm assign-select" aria-label="Assign to agent" [formControl]="assignControl">
               <option value="">Unassigned</option>
               @for (agent of agents(); track agent.id) {
                 <option [value]="agent.id">{{ agent.fullName }}</option>

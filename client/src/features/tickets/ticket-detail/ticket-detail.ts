@@ -42,6 +42,14 @@ export class TicketDetail implements OnInit {
   readonly agents = signal<StaffSummary[]>([]);
   readonly statuses = TICKET_STATUSES;
   readonly statusControl = new FormControl<TicketStatus>('Open', { nonNullable: true });
+  // A plain [value] binding on a native <select> races the @for-generated <option>s built from
+  // agents() (loaded over HTTP, so genuinely not there on first render): the browser finds no
+  // matching option yet, silently falls back to the first one ("Unassigned"), and — because
+  // Angular only re-applies [value] when the bound expression itself changes, not when new
+  // <option> children appear — never corrects itself once agents() does load. Reactive forms'
+  // SelectControlValueAccessor is built specifically to handle this (same reason statusControl
+  // above is a FormControl too), so this one is too instead of a bare [value]/(change) pair.
+  readonly assignControl = new FormControl<string>('', { nonNullable: true });
   readonly isStaffRole = isStaffRole;
 
   readonly replyForm = this.fb.group({
@@ -54,6 +62,7 @@ export class TicketDetail implements OnInit {
 
   constructor() {
     this.statusControl.valueChanges.subscribe((status) => this.onStatusSelected(status));
+    this.assignControl.valueChanges.subscribe((agentId) => this.onAgentSelected(agentId));
   }
 
   ngOnInit(): void {
@@ -75,6 +84,7 @@ export class TicketDetail implements OnInit {
       next: (ticket) => {
         this.ticket.set(ticket);
         this.statusControl.setValue(ticket.status, { emitEvent: false });
+        this.assignControl.setValue(ticket.assignedAgentId ?? '', { emitEvent: false });
         this.syncStatusControlEnabled(ticket);
         this.loading.set(false);
       },
@@ -157,20 +167,25 @@ export class TicketDetail implements OnInit {
     this.ticketService.assignToSelf(this.ticketId).subscribe({
       next: (ticket) => {
         this.ticket.set(ticket);
+        this.assignControl.setValue(ticket.assignedAgentId ?? '', { emitEvent: false });
         this.toastService.show('Ticket assigned to you.', 'success');
       },
       error: (error: HttpErrorResponse) => this.ticketActionError.set(extractMessage(error)),
     });
   }
 
-  onAgentSelected(agentId: string): void {
+  private onAgentSelected(agentId: string): void {
     this.ticketActionError.set(null);
     this.ticketService.assign(this.ticketId, { agentId: agentId || null }).subscribe({
       next: (ticket) => {
         this.ticket.set(ticket);
+        this.assignControl.setValue(ticket.assignedAgentId ?? '', { emitEvent: false });
         this.toastService.show(agentId ? 'Ticket reassigned.' : 'Ticket unassigned.', 'success');
       },
-      error: (error: HttpErrorResponse) => this.ticketActionError.set(extractMessage(error)),
+      error: (error: HttpErrorResponse) => {
+        this.ticketActionError.set(extractMessage(error));
+        this.assignControl.setValue(this.ticket()?.assignedAgentId ?? '', { emitEvent: false });
+      },
     });
   }
 
