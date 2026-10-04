@@ -1,7 +1,16 @@
+<!--
+  display="dynamic" is required, not optional: NgbDropdown defaults `display` to 'static'
+  whenever its host sits inside any .navbar-classed ancestor (true here in both the customer top
+  navbar and the agent shell's mobile nav) — and 'static' mode skips Popper positioning entirely,
+  so `placement` below is silently ignored and the menu renders wherever its raw, unpositioned
+  absolute fallback happens to land. Forcing 'dynamic' is what actually makes `placement` and
+  `container="body"` take effect.
+-->
 <div
   ngbDropdown
   container="body"
   placement="bottom-end"
+  display="dynamic"
   (openChange)="onOpenChange($event)"
   class="notification-bell d-inline-block"
 >
