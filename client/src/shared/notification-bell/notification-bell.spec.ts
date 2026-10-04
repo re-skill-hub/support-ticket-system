@@ -115,4 +115,16 @@ describe('NotificationBell', () => {
 
     expect(fixture.componentInstance.unreadCount()).toBe(4);
   });
+
+  it('forces dynamic (Popper-based) positioning instead of NgbDropdown\'s navbar-detected static default', () => {
+    // NgbDropdown silently defaults `display` to 'static' (CSS-flow positioning, no Popper, and
+    // `placement`/`container` become no-ops) whenever its host sits inside any .navbar-classed
+    // ancestor — true for this component in both the customer top navbar and the agent shell's
+    // mobile nav. Losing this attribute reintroduces the "dropdown renders detached from the
+    // bell" bug without any other visible template change, so guard it explicitly.
+    const fixture = createComponent();
+    const host: HTMLElement = fixture.nativeElement.querySelector('[ngbDropdown]');
+
+    expect(host.getAttribute('display')).toBe('dynamic');
+  });
 });
