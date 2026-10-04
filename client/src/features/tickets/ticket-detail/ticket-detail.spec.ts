@@ -2,7 +2,7 @@ import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
-import { defer, of, throwError } from 'rxjs';
+import { defer, delay, of, throwError } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { ResponseService } from '../../../core/services/response.service';
 import { TicketService } from '../../../core/services/ticket.service';
@@ -220,7 +220,7 @@ describe('TicketDetail', () => {
   it('shows the server error inline when reassigning fails', () => {
     ticketService.assign.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { message: 'Could not reassign.' } })));
     const fixture = createStaffComponent();
-    fixture.componentInstance.onAgentSelected('agent2');
+    fixture.componentInstance.assignControl.setValue('agent2');
 
     expect(fixture.componentInstance.ticketActionError()).toBe('Could not reassign.');
   });
@@ -266,7 +266,7 @@ describe('TicketDetail', () => {
 
   it('reassigns the ticket to the selected agent', () => {
     const fixture = createStaffComponent();
-    fixture.componentInstance.onAgentSelected('agent2');
+    fixture.componentInstance.assignControl.setValue('agent2');
 
     expect(ticketService.assign).toHaveBeenCalledWith('t1', { agentId: 'agent2' });
     expect(fixture.componentInstance.ticket()?.assignedAgentId).toBe('agent2');
@@ -275,10 +275,39 @@ describe('TicketDetail', () => {
 
   it('unassigns the ticket when the selection is cleared', () => {
     const fixture = createStaffComponent();
-    fixture.componentInstance.onAgentSelected('');
+    fixture.componentInstance.assignControl.setValue('');
 
     expect(ticketService.assign).toHaveBeenCalledWith('t1', { agentId: null });
     expect(toastService.show).toHaveBeenCalledWith('Ticket unassigned.', 'success');
+  });
+
+  it('does not fire an assign request just from loadTicket() setting assignControl programmatically', () => {
+    createStaffComponent();
+
+    expect(ticketService.assign).not.toHaveBeenCalled();
+  });
+
+  it('shows the already-assigned agent in the rendered <select> even when agents() resolves after the ticket', async () => {
+    // Reproduces the reported bug: Ticket Queue shows an assigned agent's name (from
+    // AssignedAgentName), but ticket-detail's assign-select showed "Unassigned" because its old
+    // bare [value] binding raced the @for-generated <option>s built from agents() (loaded over
+    // HTTP, same as here) — the browser found no matching <option> yet, fell back to the first
+    // one, and never corrected itself once the real one arrived. Checking the FormControl's own
+    // value wouldn't catch this (that part was always correct); the DOM <select>'s .value is
+    // where the bug actually showed up.
+    vi.useFakeTimers();
+    const assignedTicket: Ticket = { ...ticket, assignedAgentId: 'agent1', assignedAgentName: 'Ada Agent' };
+    ticketService.getById.mockReturnValue(of(assignedTicket));
+    ticketService.getAgents.mockReturnValue(of(agents).pipe(delay(10)));
+
+    const fixture = createStaffComponent();
+    fixture.detectChanges();
+
+    await vi.advanceTimersByTimeAsync(10);
+    fixture.detectChanges();
+
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector('.assign-select');
+    expect(select.value).toBe('agent1');
   });
 
   it('shows a success toast after a status change', () => {
